@@ -1,12 +1,11 @@
 import asyncio
 import config
-from aiogram import Bot, Dispatcher, types, F
-from aiogram.filters.command import Command, Message, Filter
-from aiogram.filters.state import StatesGroup, State
+from aiogram import Bot, Dispatcher
+from aiogram.filters.command import Command, Message
 
 from handlers import handlers_unauthorized_user, handlers_administration_user, handlers_clients_user
 from utils.middleware import StatusMiddleware, User_status
-from utils.filters import IsAuthorizedFilter, IsUnauthrorized, IsAdminFilter, UserStatus
+from utils.filters import IsAuthorizedFilter, IsUnauthorized, IsAdminFilter, UserStatus
 from keyboards import keyboards_unauthorized_user
 
 
@@ -20,8 +19,8 @@ async def main():
     dp.update.middleware(StatusMiddleware())
     dp.include_routers(handlers_unauthorized_user.router, handlers_administration_user.router)
 
-    handlers_unauthorized_user.router.message.filter(IsUnauthrorized())
-    handlers_unauthorized_user.router.callback_query.filter(IsUnauthrorized())
+    handlers_unauthorized_user.router.message.filter(IsUnauthorized())
+    handlers_unauthorized_user.router.callback_query.filter(IsUnauthorized())
 
     handlers_administration_user.router.message.filter(IsAdminFilter())
     handlers_administration_user.router.callback_query.filter(IsAdminFilter())

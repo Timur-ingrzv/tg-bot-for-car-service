@@ -19,6 +19,6 @@ class IsAuthorizedFilter(Filter):
         return user_status == UserStatus.CLIENT
 
 
-class IsUnauthrorized(Filter):
+class IsUnauthorized(Filter):
     async def __call__(self, message: types.Message, user_status: UserStatus) -> bool:
         return user_status == UserStatus.UNAUTHORIZED_USER
