@@ -17,3 +17,11 @@ async def print_services(callback: types.CallbackQuery):
         marker=""
     )
     await callback.message.answer(**content.as_kwargs())
+
+@router.callback_query(F.data == "authorization")
+async def authorization(callback: types.CallbackQuery):
+    pass
+
+@router.callback_query(F.data == "registration")
+async def registration(callback: types.CallbackQuery):
+    pass
