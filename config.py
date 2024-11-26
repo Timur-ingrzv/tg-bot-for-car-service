@@ -1,12 +1,25 @@
 import logging
-
+from dotenv import load_dotenv
+import os
 
 # Включаем логирование, чтобы не пропустить важные сообщения
 logging.basicConfig(level=logging.INFO)
 
-TOKEN = "7813099217:AAHE_Bf60OfAMigeVeoimJHp_Zy5umhiK28"
-
+load_dotenv()
+BOT_TOKEN = str(os.getenv("BOT_TOKEN"))
+PASSWORD_DB = str(os.getenv("PASSWORD_DB"))
 CAR_SERVICE_NAME = "ТЕСТ"
-AVAILABLE_SERVICES = ["Диагностика", "Шиномонтаж", "Ремонт", "Техническое обслуживание", "Работа с электрикой"]
-class Database_config:
-    pass
+AVAILABLE_SERVICES = [
+    "Диагностика",
+    "Шиномонтаж",
+    "Ремонт",
+    "Техническое обслуживание",
+    "Работа с электрикой",
+]
+DATABASE_CONFIG = {
+    "database": "tg_bot_services",
+    "user": "postgres",
+    "password": PASSWORD_DB,
+    "host": "localhost",
+    "port": "5432",
+}
