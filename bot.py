@@ -20,8 +20,11 @@ dp = Dispatcher()
 # Запуск процесса поллинга новых апдейтов
 async def main():
     dp.include_routers(
-        handlers_for_unauthorized.router, handlers_for_administration.router
+        handlers_for_unauthorized.router,
+        handlers_for_clients.router,
+        handlers_for_administration.router,
     )
+    await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
 
