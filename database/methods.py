@@ -1,7 +1,6 @@
 import asyncio
 import logging
 from typing import Dict
-
 import asyncpg
 from pypika import Table, Query, Order, functions as fn
 
@@ -14,6 +13,7 @@ class MethodsUnauthorized:
         self.users = Table("users_info")
 
     async def find_user(self, login: str, password: str) -> Dict:
+        """Метод нахождения пользователя по паре логин-пароль"""
         connection = await asyncpg.connect(**self.db_config)
         try:
             query = (
@@ -35,6 +35,7 @@ class MethodsUnauthorized:
             await connection.close()
 
     async def add_user(self, info: Dict) -> str:
+        """Метод добавления нового пользователя"""
         connection = await asyncpg.connect(**self.db_config)
         try:
             user = await self.find_user(info["login"], info["password"])
@@ -70,7 +71,13 @@ class MethodsUnauthorized:
         finally:
             await connection.close()
 
+class MethodsClients:
+    def __init__(self, config: Dict):
+        self.db_config = config
+        self.users = Table("users_info")
+
     async def change_profile(self, user_id, changed_field, new_value) -> str:
+        """Метод изменения данных пользователя"""
         connection = await asyncpg.connect(**self.db_config)
         try:
             field = None
@@ -97,7 +104,7 @@ class MethodsUnauthorized:
             return "Ошибка подключения, повторите позже"
 
 
-class Database(MethodsUnauthorized):
+class Database(MethodsUnauthorized, MethodsClients):
     def __init__(self, conf):
         super().__init__(conf)
 

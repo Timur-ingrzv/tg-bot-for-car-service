@@ -1,4 +1,8 @@
 import asyncio
+
+from aiogram.fsm.context import FSMContext
+from sqlalchemy.testing.plugin.plugin_base import logging
+
 import config
 from aiogram import Bot, Dispatcher
 from aiogram.filters.command import Command, Message
@@ -9,7 +13,9 @@ from handlers import (
     handlers_for_clients,
 )
 from keyboards import keyboards_for_unauthorized
-
+from keyboards.keyboards_for_administration import get_interface_for_admin
+from keyboards.keyboards_for_clients import get_interface_for_client
+from utils.states import UserStatus
 
 # Объект бота
 bot = Bot(token=config.BOT_TOKEN)
@@ -29,11 +35,28 @@ async def main():
 
 
 @dp.message(Command("start"))
-async def cmd_start(message: Message):
-    await message.answer(
-        f"Добро пожаловать в автосервис {config.CAR_SERVICE_NAME}\n",
+async def cmd_start(message: Message, bot: Bot):
+    await bot.send_message(
+        chat_id=message.chat.id,
+        text=f"Добро пожаловать в автосервис {config.CAR_SERVICE_NAME}\n",
         reply_markup=keyboards_for_unauthorized.get_start_keyboard(),
     )
+
+@dp.message(Command("help"))
+async def helper(message: Message, state: FSMContext, bot: Bot):
+    cur_state = await state.get_state()
+    if cur_state == UserStatus.admin.state:
+        await message.answer(
+            "Доступные опции для администрации",
+            reply_markup=get_interface_for_admin()
+        )
+    elif cur_state == UserStatus.client.state:
+        await message.answer(
+            "Доступные опции для клиента",
+            reply_markup=get_interface_for_client()
+        )
+    else:
+        await cmd_start(message, bot)
 
 
 if __name__ == "__main__":

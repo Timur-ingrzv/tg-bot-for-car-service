@@ -9,6 +9,14 @@ from utils.states import ChangeClientProfile, UserStatus
 router = Router()
 
 
+@router.callback_query(F.data == "exit profile")
+async def exit_profile(callback: types.CallbackQuery, state: FSMContext):
+    await state.clear()
+    from bot import cmd_start, bot
+
+    await cmd_start(callback.message, bot)
+
+
 @router.callback_query(F.data == "change client profile data")
 async def change_profile_data(callback: types.CallbackQuery):
     await callback.message.answer(
