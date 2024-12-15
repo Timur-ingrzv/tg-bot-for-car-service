@@ -1,11 +1,9 @@
 import asyncio
 import datetime
 import logging
-import time
-from ctypes.macholib.framework import framework_info
-from typing import Dict
+
+from typing import Dict, List
 import asyncpg
-from asyncpg.pgproto.pgproto import timedelta
 from pypika import Table, Query, Order, functions, Interval
 
 from config import DATABASE_CONFIG
@@ -116,11 +114,10 @@ class MethodsClients:
             logging.error(e)
             return "Ошибка подключения, повторите позже"
 
-    async def find_free_slots(self):
+    async def find_free_slots(self, date: datetime.datetime) -> List:
         connection = await asyncpg.connect(**self.db_config)
         try:
             # ищем всех работников, работающих в этот день
-            date = datetime.datetime(2024, 12, 22)
             day_week = date.weekday()
             find_worker_query = (
                 Query.from_(self.working_time)
@@ -128,7 +125,7 @@ class MethodsClients:
                     self.working_time.worker_id,
                     self.working_time.time_start,
                     self.working_time.time_end,
-                    self.working_time.day_week
+                    self.working_time.day_week,
                 )
                 .where(self.working_time.day_week == day_week)
             )
@@ -137,10 +134,12 @@ class MethodsClients:
             free_slots = set()
             for worker in workers:
                 # создает диапозон промежутков свободных слотов
-                start_time = datetime.datetime.combine(date, worker["time_start"])
+                start_time = datetime.datetime.combine(
+                    date, worker["time_start"]
+                )
                 end_time = datetime.datetime.combine(date, worker["time_end"])
                 end_time -= datetime.timedelta(hours=1)
-                query = f'''
+                query = f"""
                 WITH RECURSIVE possible_slots AS (
                     -- Генерируем все возможные слоты
                     SELECT
@@ -159,15 +158,58 @@ class MethodsClients:
                 -- Находим свободные слоты, исключая занятые
                 SELECT slot_time FROM possible_slots
                 WHERE slot_time NOT IN (SELECT slot_time FROM occupied_slots);
-                '''
+                """
                 res = await connection.fetch(query)
                 free_slots.update(res)
 
             # вытаскиваем время из datetime и сортируем
-            free_slots = [slot["slot_time"].time() for slot in free_slots]
+            free_slots = [
+                f"{slot["slot_time"].time().hour:02}:{slot["slot_time"].time().minute:02}"
+                for slot in free_slots
+            ]
             free_slots.sort()
-            for el in free_slots:
-                print(el)
+            return free_slots
+
+        except Exception as e:
+            logging.error(e)
+            return ["Ошибка обращения к базе, повторите позже"]
+
+        finally:
+            await connection.close()
+
+    async def add_schedule(self) -> str:
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            date = datetime.datetime(2024, 12, 22, 17)
+            working_workers = (
+                Query.from_(self.working_time)
+                .select(self.working_time.worker_id)
+                .where(
+                    (self.working_time.day_week == date.weekday())
+                    & (self.working_time.time_start <= str(date.time()))
+                    & (self.working_time.time_end > str(date.time()))
+                )
+            )
+            busy_workers = (
+                Query.from_(self.schedule)
+                .select(self.schedule.worker_id)
+                .where(date == self.schedule.date)
+            )
+            free_workers = (
+                Query.from_(self.workers)
+                .select(self.workers.id, self.workers.name)
+                .where(
+                    self.workers.id.isin(working_workers)
+                    & self.workers.id.notin(busy_workers)
+                )
+            )
+
+            res = await connection.fetch(str(free_workers))
+            print(res)
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка обращения к базе, повторите позже"
         finally:
             await connection.close()
 
@@ -186,4 +228,4 @@ info = {
     "phone_number": "9894",
     "chat_id": "123",
 }
-asyncio.run(db.find_free_slots())
+asyncio.run(db.add_schedule())

@@ -42,18 +42,19 @@ async def cmd_start(message: Message, bot: Bot):
         reply_markup=keyboards_for_unauthorized.get_start_keyboard(),
     )
 
+
 @dp.message(Command("help"))
 async def helper(message: Message, state: FSMContext, bot: Bot):
     cur_state = await state.get_state()
     if cur_state == UserStatus.admin.state:
         await message.answer(
             "Доступные опции для администрации",
-            reply_markup=get_interface_for_admin()
+            reply_markup=get_interface_for_admin(),
         )
     elif cur_state == UserStatus.client.state:
         await message.answer(
             "Доступные опции для клиента",
-            reply_markup=get_interface_for_client()
+            reply_markup=get_interface_for_client(),
         )
     else:
         await cmd_start(message, bot)

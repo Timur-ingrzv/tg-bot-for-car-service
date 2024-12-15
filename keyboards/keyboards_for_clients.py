@@ -11,7 +11,7 @@ def get_interface_for_client():
         ],
         [
             types.InlineKeyboardButton(
-                text="Посмотреть записи",
+                text="Посмотреть свободное время для записи",
                 callback_data="show scheduler for client",
             )
         ],

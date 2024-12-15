@@ -1,10 +1,12 @@
+from datetime import datetime
+
 from aiogram import F, Router, types
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 
 from database.methods import db
 from keyboards.keyboards_for_clients import get_interface_change_profile
-from utils.states import ChangeClientProfile, UserStatus
+from utils.states import ChangeClientProfile, UserStatus, SchedulerClient
 
 router = Router()
 
@@ -50,3 +52,27 @@ async def change_client_profile(message: types.Message, state: FSMContext):
 
     result = await db.change_profile(data["user_id"], changed_field, new_value)
     await message.answer(result)
+
+
+@router.callback_query(F.data == "show scheduler for client")
+async def input_date_for_scheduler(
+    callback: types.CallbackQuery, state: FSMContext
+):
+    await state.set_state(SchedulerClient.waiting_for_date_to_show_schedule)
+    await callback.message.answer("Введите желаемую дату в формате dd-mm-yyyy")
+
+
+@router.message(StateFilter(SchedulerClient.waiting_for_date_to_show_schedule))
+async def add_schedule(message: types.Message, state: FSMContext):
+    await state.set_state(UserStatus.client)
+    date = message.text
+    try:
+        valid_date = datetime.strptime(date, "%d-%m-%Y")
+    except Exception as e:
+        await message.answer("Неправильный формат даты")
+        return
+
+    res = await db.find_free_slots(valid_date)
+    if not res:
+        res = ["В данную дату нет свободных свободного времени"]
+    await message.answer("\n".join(res))

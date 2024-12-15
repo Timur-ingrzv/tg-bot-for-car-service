@@ -20,3 +20,7 @@ class Registration(StatesGroup):
 
 class ChangeClientProfile(StatesGroup):
     waiting_for_new_value = State()
+
+
+class SchedulerClient(StatesGroup):
+    waiting_for_date_to_show_schedule = State()

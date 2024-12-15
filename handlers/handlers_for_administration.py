@@ -8,4 +8,3 @@ router = Router()
 @router.message()
 async def unknown_message(message: types.Message):
     await message.answer("Я не понимаю, напишите /help или используйте кнопки")
-
