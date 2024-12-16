@@ -92,15 +92,14 @@ class MethodsClients:
         connection = await asyncpg.connect(**self.db_config)
         try:
             field = None
-            match changed_field:
-                case "name":
-                    field = self.users.name
-                case "login":
-                    field = self.users.login
-                case "password":
-                    field = self.users.password
-                case "phone_number":
-                    field = self.users.phone_number
+            if changed_field == "name":
+                field = self.users.name
+            if changed_field == "login":
+                field = self.users.login
+            if changed_field == "password":
+                field = self.users.password
+            if changed_field == "phone_number":
+                field = self.users.phone_number
 
             query = (
                 Query.update(self.users)
@@ -164,7 +163,7 @@ class MethodsClients:
 
             # вытаскиваем время из datetime и сортируем
             free_slots = [
-                f"{slot["slot_time"].time().hour:02}:{slot["slot_time"].time().minute:02}"
+                f"{slot['slot_time'].time().hour:02}:{slot['slot_time'].time().minute:02}"
                 for slot in free_slots
             ]
             free_slots.sort()
@@ -231,7 +230,7 @@ class MethodsClients:
                 )
             )
             await connection.execute(str(add_query))
-            return f"Вы успешно записались на {data["date"]}"
+            return f"Вы успешно записались на {data['date']}"
 
         except Exception as e:
             logging.error(e)
