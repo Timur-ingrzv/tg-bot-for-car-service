@@ -177,10 +177,12 @@ class MethodsClients:
         finally:
             await connection.close()
 
-    async def add_schedule(self) -> str:
+    async def add_schedule(self, data) -> str:
+        """Проверяет наличие свободных работников и добавляет запись если есть работник"""
         connection = await asyncpg.connect(**self.db_config)
         try:
-            date = datetime.datetime(2024, 12, 22, 17)
+            # находим свободных работников в эту дату
+            date = data["date"]
             working_workers = (
                 Query.from_(self.working_time)
                 .select(self.working_time.worker_id)
@@ -203,13 +205,38 @@ class MethodsClients:
                     & self.workers.id.notin(busy_workers)
                 )
             )
+            workers = await connection.fetch(str(free_workers))
+            if not workers:
+                return "В данное время нет свободных работников"
 
-            res = await connection.fetch(str(free_workers))
-            print(res)
+            # добавляем новую запись
+            service_id = (
+                Query.from_(self.services_info)
+                .select(self.services_info.id)
+                .where(self.services_info.name == data["service_name"])
+            )
+            add_query = (
+                Query.into(self.schedule)
+                .columns(
+                    self.schedule.service_id,
+                    self.schedule.client_id,
+                    self.schedule.worker_id,
+                    self.schedule.date,
+                )
+                .insert(
+                    service_id,
+                    data["client_id"],
+                    workers[0]["id"],
+                    data["date"],
+                )
+            )
+            await connection.execute(str(add_query))
+            return f"Вы успешно записались на {data["date"]}"
 
         except Exception as e:
             logging.error(e)
             return "Ошибка обращения к базе, повторите позже"
+
         finally:
             await connection.close()
 
@@ -228,4 +255,4 @@ info = {
     "phone_number": "9894",
     "chat_id": "123",
 }
-asyncio.run(db.add_schedule())
+# asyncio.run(db.add_schedule())

@@ -1,5 +1,7 @@
 from aiogram import types
 
+from config import AVAILABLE_SERVICES
+
 
 def get_interface_for_client():
     buttons = [
@@ -54,6 +56,19 @@ def get_interface_change_profile():
                 callback_data="change-client-profile_phone_number",
             )
         ],
+    ]
+    keyboard = types.InlineKeyboardMarkup(inline_keyboard=buttons)
+    return keyboard
+
+
+def get_services_to_add_schedule():
+    buttons = [
+        [
+            types.InlineKeyboardButton(
+                text=f"{service}", callback_data=f"choose-service_{service}"
+            )
+        ]
+        for service in AVAILABLE_SERVICES
     ]
     keyboard = types.InlineKeyboardMarkup(inline_keyboard=buttons)
     return keyboard
