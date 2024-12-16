@@ -1,8 +1,6 @@
 import asyncio
 
 from aiogram.fsm.context import FSMContext
-from sqlalchemy.testing.plugin.plugin_base import logging
-
 import config
 from aiogram import Bot, Dispatcher
 from aiogram.filters.command import Command, Message
