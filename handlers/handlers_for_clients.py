@@ -88,14 +88,14 @@ async def input_date_to_add_schedule(
 ):
     await state.set_state(SchedulerClient.waiting_for_date_to_add_schedule)
     await callback.message.answer(
-        "Введите дату и время для записи в формате dd-mm-yyyy hours:minutes"
+        "Введите дату и время для записи в формате dd-mm-yyyy hours"
     )
 
 
 @router.message(StateFilter(SchedulerClient.waiting_for_date_to_add_schedule))
 async def input_service_name(message: types.Message, state: FSMContext):
     try:
-        valid_date = datetime.strptime(message.text.strip(), "%d-%m-%Y %H:%M")
+        valid_date = datetime.strptime(message.text.strip(), "%d-%m-%Y %H")
         await state.update_data(date=valid_date)
     except Exception as e:
         await state.set_state(UserStatus.client)
@@ -110,7 +110,10 @@ async def input_service_name(message: types.Message, state: FSMContext):
     )
 
 
-@router.callback_query(F.data.startswith("choose-service_"))
+@router.callback_query(
+    StateFilter(SchedulerClient.waiting_for_service_name_to_add_schedule),
+    F.data.startswith("choose-service_")
+)
 async def add_schedule(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state(UserStatus.client)
     data = await state.get_data()
