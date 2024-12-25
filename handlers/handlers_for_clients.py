@@ -1,8 +1,16 @@
-from datetime import datetime
+from calendar import month
+from datetime import datetime, timedelta, time
 
 from aiogram import F, Router, types
 from aiogram.filters import StateFilter
+from aiogram.filters.callback_data import CallbackData
 from aiogram.fsm.context import FSMContext
+from aiogram_calendar import (
+    SimpleCalendar,
+    get_user_locale,
+    SimpleCalendarCallback,
+)
+from sqlalchemy.testing.plugin.plugin_base import logging
 
 from database.methods import db
 from keyboards.keyboards_for_clients import (
@@ -63,23 +71,48 @@ async def input_date_for_scheduler(
     callback: types.CallbackQuery, state: FSMContext
 ):
     await state.set_state(SchedulerClient.waiting_for_date_to_show_schedule)
-    await callback.message.answer("Введите желаемую дату в формате dd-mm-yyyy")
+    calendar = SimpleCalendar(
+        locale=await get_user_locale(callback.from_user), show_alerts=True
+    )
+    cur_time = datetime.now()
+    calendar.set_dates_range(
+        cur_time - timedelta(days=30), cur_time + timedelta(days=120)
+    )
+    await callback.message.answer(
+        "Выберите желаемую дату",
+        reply_markup=await calendar.start_calendar(
+            year=cur_time.year, month=cur_time.month
+        ),
+    )
 
 
-@router.message(StateFilter(SchedulerClient.waiting_for_date_to_show_schedule))
-async def add_schedule(message: types.Message, state: FSMContext):
+@router.callback_query(
+    StateFilter(SchedulerClient.waiting_for_date_to_show_schedule),
+    SimpleCalendarCallback.filter(),
+)
+async def show_schedule(
+    callback: types.CallbackQuery,
+    state: FSMContext,
+    callback_data: CallbackData,
+):
     await state.set_state(UserStatus.client)
-    date = message.text
-    try:
-        valid_date = datetime.strptime(date.strip(), "%d-%m-%Y")
-    except Exception as e:
-        await message.answer("Неправильный формат даты")
-        return
-
-    res = await db.find_free_slots(valid_date)
-    if not res:
-        res = ["В данную дату нет свободных свободного времени"]
-    await message.answer("\n".join(res))
+    calendar = SimpleCalendar(locale=await get_user_locale(callback.from_user))
+    cur_date = datetime.now()
+    calendar.set_dates_range(
+        cur_date - timedelta(days=30), cur_date + timedelta(days=120)
+    )
+    selected, date = await calendar.process_selection(callback, callback_data)
+    if selected:
+        await state.set_state(UserStatus.client)
+        if date < cur_date:
+            await callback.message.answer("Выберите дату позже текущей")
+            return
+        res = await db.find_free_slots(date)
+        if not res:
+            res = ["В данную дату нет свободного времени"]
+        ans = "\n".join(res)
+        ans = f"Свободные слоты на {date.strftime('%d-%m-%Y')}:\n" + ans
+        await callback.message.answer(ans)
 
 
 @router.callback_query(F.data == "sign up for service")
@@ -87,19 +120,59 @@ async def input_date_to_add_schedule(
     callback: types.CallbackQuery, state: FSMContext
 ):
     await state.set_state(SchedulerClient.waiting_for_date_to_add_schedule)
+    calendar = SimpleCalendar(
+        locale=await get_user_locale(callback.from_user), show_alerts=True
+    )
+    cur_time = datetime.now()
+    calendar.set_dates_range(
+        cur_time - timedelta(days=30), cur_time + timedelta(days=120)
+    )
     await callback.message.answer(
-        "Введите дату и время для записи в формате dd-mm-yyyy hours"
+        "Выберите желаемую дату",
+        reply_markup=await calendar.start_calendar(
+            year=cur_time.year, month=cur_time.month
+        ),
     )
 
 
-@router.message(StateFilter(SchedulerClient.waiting_for_date_to_add_schedule))
+@router.callback_query(
+    StateFilter(SchedulerClient.waiting_for_date_to_add_schedule),
+    SimpleCalendarCallback.filter(),
+)
+async def input_time_to_add_schedule(
+    callback: types.CallbackQuery,
+    state: FSMContext,
+    callback_data: CallbackData,
+):
+    await state.set_state(UserStatus.client)
+    calendar = SimpleCalendar(locale=await get_user_locale(callback.from_user))
+    cur_date = datetime.now()
+    calendar.set_dates_range(
+        cur_date - timedelta(days=30), cur_date + timedelta(days=120)
+    )
+    selected, date = await calendar.process_selection(callback, callback_data)
+    if selected:
+        await state.set_state(SchedulerClient.waiting_for_time_to_add_schedule)
+        await state.update_data(date=date)
+        await callback.message.answer("Введите желаемое время - час дня")
+
+
+@router.message(StateFilter(SchedulerClient.waiting_for_time_to_add_schedule))
 async def input_service_name(message: types.Message, state: FSMContext):
     try:
-        valid_date = datetime.strptime(message.text.strip(), "%d-%m-%Y %H")
+        valid_time = int(message.text.strip())
+        if not (0 <= valid_time < 24):
+            await state.set_state(UserStatus.client)
+            await message.answer("Время должно быть в диапазоне от 0 до 24")
+            return
+
+        data = await state.get_data()
+        valid_date = datetime.combine(data["date"], time(hour=valid_time))
         await state.update_data(date=valid_date)
+
     except Exception as e:
         await state.set_state(UserStatus.client)
-        await message.answer("Неправильный формат даты")
+        await message.answer("Неправильный формат времени")
         return
 
     await state.set_state(
@@ -112,7 +185,7 @@ async def input_service_name(message: types.Message, state: FSMContext):
 
 @router.callback_query(
     StateFilter(SchedulerClient.waiting_for_service_name_to_add_schedule),
-    F.data.startswith("choose-service_")
+    F.data.startswith("choose-service_"),
 )
 async def add_schedule(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state(UserStatus.client)

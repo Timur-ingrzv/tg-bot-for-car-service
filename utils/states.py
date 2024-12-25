@@ -25,4 +25,5 @@ class ChangeClientProfile(StatesGroup):
 class SchedulerClient(StatesGroup):
     waiting_for_date_to_show_schedule = State()
     waiting_for_date_to_add_schedule = State()
+    waiting_for_time_to_add_schedule = State()
     waiting_for_service_name_to_add_schedule = State()
