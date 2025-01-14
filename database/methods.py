@@ -4,7 +4,7 @@ import logging
 
 from typing import Dict, List
 import asyncpg
-from pypika import Table, Query, Order, functions, Interval
+from pypika import Table, Query
 
 from config import DATABASE_CONFIG
 
@@ -269,6 +269,38 @@ class MethodsSchedule:
         finally:
             await connection.close()
 
+    async def delete_schedule(self, name, date) -> str:
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            find_query = (
+                Query.from_(self.schedule)
+                .join(self.users)
+                .on(self.users.id == self.schedule.client_id)
+                .join(self.workers)
+                .on(self.workers.id == self.schedule.worker_id)
+                .select(self.schedule.id)
+                .where(self.schedule.date == date)
+                .where((self.workers.name == name) | (self.users.name == name))
+            )
+            record = await connection.fetchrow(str(find_query))
+            if not record:
+                return f"Записи в данное время для {name} не существует"
+
+            query = (
+                Query.from_(self.schedule)
+                .delete()
+                .where(self.schedule.id == record["id"])
+            )
+            await connection.execute(str(query))
+            return "Запись успешно удалена"
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка обращения к базе, повторите позже"
+
+        finally:
+            await connection.close()
+
 
 class MethodsServices:
     def __init__(self, config: Dict):
@@ -310,5 +342,6 @@ info = {
     "phone_number": "9894",
     "chat_id": "123",
 }
-res = asyncio.run(db.show_services())
+date = datetime.datetime.strptime("22-12-2024 17", "%d-%m-%Y %H")
+res = asyncio.run(db.delete_schedule("test_worker", date))
 print(res)

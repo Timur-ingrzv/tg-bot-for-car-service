@@ -10,7 +10,6 @@ from aiogram_calendar import (
     SimpleCalendarCallback,
 )
 
-
 from database.methods import db
 from keyboards.keyboards_for_clients import (
     get_interface_change_profile,
@@ -96,7 +95,6 @@ async def show_schedule(
     state: FSMContext,
     callback_data: CallbackData,
 ):
-    await state.set_state(UserStatus.client)
     calendar = SimpleCalendar(locale=await get_user_locale(callback.from_user))
     cur_date = datetime.now()
     calendar.set_dates_range(
@@ -114,9 +112,6 @@ async def show_schedule(
         ans = "\n".join(res)
         ans = f"Свободные слоты на {date.strftime('%d-%m-%Y')}:\n" + ans
         await callback.message.answer(ans)
-    else:
-        await state.set_state(UserStatus.client)
-        await callback.message.answer("Произошла ошибка, повторите еще раз")
 
 
 @router.callback_query(F.data == "sign up for service")
@@ -148,7 +143,6 @@ async def input_time_to_add_schedule(
     state: FSMContext,
     callback_data: CallbackData,
 ):
-    await state.set_state(UserStatus.client)
     calendar = SimpleCalendar(locale=await get_user_locale(callback.from_user))
     cur_date = datetime.now()
     calendar.set_dates_range(
@@ -159,9 +153,6 @@ async def input_time_to_add_schedule(
         await state.set_state(SchedulerClient.waiting_for_time_to_add_schedule)
         await state.update_data(date=date)
         await callback.message.answer("Введите желаемое время - час дня")
-    else:
-        await state.set_state(UserStatus.client)
-        await callback.message.answer("Произошла ошибка, повторите еще раз")
 
 
 @router.message(StateFilter(SchedulerClient.waiting_for_time_to_add_schedule))
@@ -170,7 +161,7 @@ async def input_service_name(message: types.Message, state: FSMContext):
         valid_time = int(message.text.strip())
         if not (0 <= valid_time < 24):
             await state.set_state(UserStatus.client)
-            await message.answer("Время должно быть в диапазоне от 0 до 24")
+            await message.answer("Время должно быть в диапазоне от 0 до 23")
             return
 
         data = await state.get_data()
@@ -179,7 +170,9 @@ async def input_service_name(message: types.Message, state: FSMContext):
 
     except Exception as e:
         await state.set_state(UserStatus.client)
-        await message.answer("Неправильный формат времени")
+        await message.answer(
+            "Неправильный формат времени - введите число от 0 до 23"
+        )
         return
 
     await state.set_state(
