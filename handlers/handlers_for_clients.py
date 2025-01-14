@@ -17,7 +17,6 @@ from keyboards.keyboards_for_clients import (
     get_services_to_add_schedule,
 )
 from utils.states import ChangeUserProfile, UserStatus, SchedulerClient
-from config import AVAILABLE_SERVICES
 
 router = Router()
 
@@ -187,7 +186,7 @@ async def input_service_name(message: types.Message, state: FSMContext):
         SchedulerClient.waiting_for_service_name_to_add_schedule
     )
     await message.answer(
-        "Выберите услугу", reply_markup=get_services_to_add_schedule()
+        "Выберите услугу", reply_markup=await get_services_to_add_schedule()
     )
 
 

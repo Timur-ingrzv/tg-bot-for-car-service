@@ -1,9 +1,7 @@
 from aiogram import F, Router, types
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.utils.formatting import Bold, as_marked_section
 
-from config import AVAILABLE_SERVICES
 from keyboards import keyboards_for_unauthorized
 from keyboards.keyboards_for_administration import get_interface_for_admin
 from keyboards.keyboards_for_clients import get_interface_for_client
@@ -18,14 +16,17 @@ router.message.middleware.register(MessageLengthMiddleware())
 
 @router.callback_query(F.data == "services")
 async def print_services(callback: types.CallbackQuery):
-    new_list = "\n".join(
-        [
-            f"{i + 1}. {AVAILABLE_SERVICES[i]}"
-            for i in range(len(AVAILABLE_SERVICES))
-        ]
-    )
-    content = as_marked_section(Bold("Доступные услуги:"), new_list, marker="")
-    await callback.message.answer(**content.as_kwargs())
+    res = await db.show_services()
+    if isinstance(res, str):
+        await callback.message.answer(res)
+        return
+
+    all_services = ""
+    for service in res:
+        all_services += (
+            f"• {service['service_name']} - {service['price']} руб.\n"
+        )
+    await callback.message.answer(all_services)
 
 
 @router.callback_query(F.data == "authorization")

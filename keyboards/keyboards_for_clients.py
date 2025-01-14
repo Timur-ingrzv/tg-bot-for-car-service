@@ -1,6 +1,6 @@
 from aiogram import types
 
-from config import AVAILABLE_SERVICES
+from database.methods import db
 
 
 def get_interface_for_client():
@@ -67,14 +67,16 @@ def get_interface_change_profile():
     return keyboard
 
 
-def get_services_to_add_schedule():
+async def get_services_to_add_schedule():
+    services = await db.show_services()
+    available_services = [service["service_name"] for service in services]
     buttons = [
         [
             types.InlineKeyboardButton(
                 text=f"{service}", callback_data=f"choose-service_{service}"
             )
         ]
-        for service in AVAILABLE_SERVICES
+        for service in available_services
     ]
     keyboard = types.InlineKeyboardMarkup(inline_keyboard=buttons)
     return keyboard

@@ -230,7 +230,7 @@ class MethodsSchedule:
                 )
             )
             await connection.execute(str(add_query))
-            return f"Вы успешно записались на {data['date']}"
+            return f"Вы успешно записались на {data['date'].strftime('%d-%m-%Y %H-%M')}"
 
         except Exception as e:
             logging.error(e)
@@ -270,7 +270,33 @@ class MethodsSchedule:
             await connection.close()
 
 
-class Database(MethodsUsers, MethodsSchedule):
+class MethodsServices:
+    def __init__(self, config: Dict):
+        self.db_config = config
+        self.users = Table("users_info")
+        self.services_info = Table("services_info")
+        self.schedule = Table("schedule")
+        self.workers = Table("workers_info")
+        self.working_time = Table("working_time")
+
+    async def show_services(self):
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            query = Query.from_(self.services_info).select(
+                self.services_info.service_name, self.services_info.price
+            )
+            res = await connection.fetch(str(query))
+            return res
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка обращения к базе, повторите позже"
+
+        finally:
+            await connection.close()
+
+
+class Database(MethodsUsers, MethodsSchedule, MethodsServices):
     def __init__(self, conf):
         super().__init__(conf)
 
@@ -284,5 +310,5 @@ info = {
     "phone_number": "9894",
     "chat_id": "123",
 }
-res = asyncio.run(db.show_schedule(1))
-print(list(res[0].items()))
+res = asyncio.run(db.show_services())
+print(res)

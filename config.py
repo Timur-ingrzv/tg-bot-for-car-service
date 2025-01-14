@@ -9,13 +9,7 @@ load_dotenv()
 BOT_TOKEN = str(os.getenv("BOT_TOKEN"))
 PASSWORD_DB = str(os.getenv("PASSWORD_DB"))
 CAR_SERVICE_NAME = "ТЕСТ"
-AVAILABLE_SERVICES = [
-    "Диагностика",
-    "Шиномонтаж",
-    "Ремонт",
-    "Техническое обслуживание",
-    "Работа с электрикой",
-]
+
 DATABASE_CONFIG = {
     "database": "tg_bot_services",
     "user": "postgres",

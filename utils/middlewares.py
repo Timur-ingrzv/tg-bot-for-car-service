@@ -27,7 +27,7 @@ class MessageLengthMiddleware(BaseMiddleware):
                 reply_markup=get_start_keyboard(),
             )
             return
-        if any(word in FORBIDDEN_WORDS for word in event.text.split()):
+        if any(word.lower() in FORBIDDEN_WORDS for word in event.text.split()):
             if fsm_context:
                 await fsm_context.clear()
             await event.answer(
