@@ -31,6 +31,11 @@ class SchedulerClient(StatesGroup):
 
 
 class SchedulerAdmin(StatesGroup):
+    waiting_for_client_name_to_add = State()
+    waiting_for_worker_name_to_add = State()
+    waiting_for_service_to_add = State()
+    waiting_for_date_to_add = State()
+    waiting_for_time_to_add = State()
     waiting_for_name_to_delete = State()
     waiting_for_date_to_delete = State()
     waiting_for_time_to_delete = State()

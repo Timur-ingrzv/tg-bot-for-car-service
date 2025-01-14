@@ -269,6 +269,69 @@ class MethodsSchedule:
         finally:
             await connection.close()
 
+    async def add_schedule_admin(self, info: Dict):
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            find_client = (
+                Query.from_(self.users)
+                .select(self.users.id)
+                .where(self.users.name == info["client_name"])
+            )
+            res = await connection.fetchrow(str(find_client))
+            if not res:
+                return "Клиента с таким именем не существует"
+            client_id = res["id"]
+
+            find_worker = (
+                Query.from_(self.workers)
+                .select(self.workers.id)
+                .where(self.workers.name == info["worker_name"])
+            )
+            res = await connection.fetchrow(str(find_worker))
+            if not res:
+                return "Работника с таким именем не существует"
+            worker_id = res["id"]
+
+            find_service = (
+                Query.from_(self.services_info)
+                .select(self.services_info.id)
+                .where(self.services_info.service_name == info["service_name"])
+            )
+            res = await connection.fetchrow(str(find_service))
+            if not res:
+                return "Услуги с таким названием не существует"
+            service_id = res["id"]
+
+            check_worker_time = (
+                Query.from_(self.schedule)
+                .select(self.schedule.id)
+                .where(self.schedule.date == info["date"])
+                .where(self.schedule.worker_id == worker_id)
+            )
+            res = await connection.fetch(str(check_worker_time))
+            if res:
+                return "Работник в данное время занят"
+
+            query = (
+                Query.into(self.schedule)
+                .columns(
+                    self.schedule.service_id,
+                    self.schedule.client_id,
+                    self.schedule.worker_id,
+                    self.schedule.date,
+                )
+                .insert(service_id, client_id, worker_id, info["date"])
+            )
+            await connection.execute(str(query))
+            return "Запись успешно добавлена"
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка обращения к базе, повторите позже"
+
+        finally:
+            await connection.close()
+
     async def delete_schedule(self, name, date) -> str:
         connection = await asyncpg.connect(**self.db_config)
         try:
@@ -343,5 +406,11 @@ info = {
     "chat_id": "123",
 }
 date = datetime.datetime.strptime("22-12-2024 17", "%d-%m-%Y %H")
-res = asyncio.run(db.delete_schedule("test_worker", date))
+info = {
+    "date": datetime.datetime.now(),
+    "client_name": "test_client1",
+    "worker_name": "test_worker",
+    "service_name": "Диагностика",
+}
+# res = asyncio.run(db.add_schedule_admin(info))
 print(res)
