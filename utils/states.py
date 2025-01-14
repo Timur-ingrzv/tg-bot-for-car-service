@@ -9,6 +9,7 @@ class Authorization(StatesGroup):
 class UserStatus(StatesGroup):
     client = State()
     admin = State()
+    unauthorized = State()
 
 
 class Registration(StatesGroup):
@@ -18,7 +19,7 @@ class Registration(StatesGroup):
     waiting_for_phone_number = State()
 
 
-class ChangeClientProfile(StatesGroup):
+class ChangeUserProfile(StatesGroup):
     waiting_for_new_value = State()
 
 

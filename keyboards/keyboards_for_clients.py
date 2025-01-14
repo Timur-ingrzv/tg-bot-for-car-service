@@ -20,7 +20,7 @@ def get_interface_for_client():
         [
             types.InlineKeyboardButton(
                 text="Изменить данные профиля",
-                callback_data="change client profile data",
+                callback_data="change profile data",
             )
         ],
         [

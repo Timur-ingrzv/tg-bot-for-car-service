@@ -5,6 +5,7 @@ from aiogram.utils.formatting import Bold, as_marked_section
 
 from config import AVAILABLE_SERVICES
 from keyboards import keyboards_for_unauthorized
+from keyboards.keyboards_for_administration import get_interface_for_admin
 from keyboards.keyboards_for_clients import get_interface_for_client
 from keyboards.keyboards_for_unauthorized import get_start_keyboard
 from utils.middlewares import MessageLengthMiddleware
@@ -57,13 +58,14 @@ async def authorization(message: types.Message, state: FSMContext):
         await message.answer(user["status"])
     else:
         await state.update_data(user_id=user["id"])
+        await state.update_data(status=user["status"])
         # выбираем интерфейс от статуса
         if user["status"] == "client":
             await state.set_state(UserStatus.client)
             interface = get_interface_for_client()
         else:
             await state.set_state(UserStatus.admin)
-            interface = None
+            interface = get_interface_for_admin()
 
         await message.answer(
             f"С возвращением, {user['name']}", reply_markup=interface

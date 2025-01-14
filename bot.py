@@ -32,7 +32,8 @@ async def main():
 
 
 @dp.message(Command("start"))
-async def cmd_start(message: Message, bot: Bot):
+async def cmd_start(message: Message, bot: Bot, state: FSMContext):
+    await state.set_state(UserStatus.unauthorized)
     await bot.send_message(
         chat_id=message.chat.id,
         text=f"Добро пожаловать в автосервис {config.CAR_SERVICE_NAME}\n",
@@ -53,8 +54,8 @@ async def helper(message: Message, state: FSMContext, bot: Bot):
             "Доступные опции для клиента",
             reply_markup=get_interface_for_client(),
         )
-    else:
-        await cmd_start(message, bot)
+    elif cur_state == UserStatus.unauthorized.state:
+        await cmd_start(message, bot, state)
 
 
 if __name__ == "__main__":
