@@ -9,7 +9,7 @@ from pypika import Table, Query, Order, functions, Interval
 from config import DATABASE_CONFIG
 
 
-class MethodsUnauthorized:
+class MethodsUsers:
     def __init__(self, config: Dict):
         self.db_config = config
         self.users = Table("users_info")
@@ -77,16 +77,6 @@ class MethodsUnauthorized:
         finally:
             await connection.close()
 
-
-class MethodsClients:
-    def __init__(self, config: Dict):
-        self.db_config = config
-        self.users = Table("users_info")
-        self.services_info = Table("services_info")
-        self.schedule = Table("schedule")
-        self.workers = Table("workers_info")
-        self.working_time = Table("working_time")
-
     async def change_profile(self, user_id, changed_field, new_value) -> str:
         """Метод изменения данных пользователя"""
         connection = await asyncpg.connect(**self.db_config)
@@ -112,6 +102,16 @@ class MethodsClients:
         except Exception as e:
             logging.error(e)
             return "Ошибка подключения, повторите позже"
+
+
+class MethodsSchedule:
+    def __init__(self, config: Dict):
+        self.db_config = config
+        self.users = Table("users_info")
+        self.services_info = Table("services_info")
+        self.schedule = Table("schedule")
+        self.workers = Table("workers_info")
+        self.working_time = Table("working_time")
 
     async def find_free_slots(self, date: datetime.datetime) -> List:
         connection = await asyncpg.connect(**self.db_config)
@@ -212,7 +212,7 @@ class MethodsClients:
             service_id = (
                 Query.from_(self.services_info)
                 .select(self.services_info.id)
-                .where(self.services_info.name == data["service_name"])
+                .where(self.services_info.service_name == data["service_name"])
             )
             add_query = (
                 Query.into(self.schedule)
@@ -239,8 +239,38 @@ class MethodsClients:
         finally:
             await connection.close()
 
+    async def show_schedule(self, user_id):
+        """Выводит все запланированные записи пользователя"""
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            cur_date = datetime.datetime.now()
+            query = (
+                Query.from_(self.schedule)
+                .join(self.workers)
+                .on(self.schedule.worker_id == self.workers.id)
+                .join(self.services_info)
+                .on(self.schedule.service_id == self.services_info.id)
+                .select(
+                    self.services_info.service_name,
+                    self.services_info.price,
+                    self.workers.name,
+                    self.schedule.date,
+                )
+                .where(self.schedule.client_id == user_id)
+                .where(cur_date < self.schedule.date)
+            )
+            res = await connection.fetch(str(query))
+            return res
 
-class Database(MethodsUnauthorized, MethodsClients):
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка обращения к базе, повторите позже"
+
+        finally:
+            await connection.close()
+
+
+class Database(MethodsUsers, MethodsSchedule):
     def __init__(self, conf):
         super().__init__(conf)
 
@@ -254,4 +284,5 @@ info = {
     "phone_number": "9894",
     "chat_id": "123",
 }
-# asyncio.run(db.add_schedule())
+res = asyncio.run(db.show_schedule(1))
+print(list(res[0].items()))

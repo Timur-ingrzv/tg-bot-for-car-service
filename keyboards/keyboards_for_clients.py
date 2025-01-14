@@ -25,6 +25,12 @@ def get_interface_for_client():
         ],
         [
             types.InlineKeyboardButton(
+                text="Посмотреть свои записи",
+                callback_data="show events for client",
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
                 text="Выйти из профиля", callback_data="exit profile"
             )
         ],

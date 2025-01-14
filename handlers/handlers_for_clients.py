@@ -1,4 +1,3 @@
-from calendar import month
 from datetime import datetime, timedelta, time
 
 from aiogram import F, Router, types
@@ -10,7 +9,7 @@ from aiogram_calendar import (
     get_user_locale,
     SimpleCalendarCallback,
 )
-from sqlalchemy.testing.plugin.plugin_base import logging
+
 
 from database.methods import db
 from keyboards.keyboards_for_clients import (
@@ -113,6 +112,9 @@ async def show_schedule(
         ans = "\n".join(res)
         ans = f"Свободные слоты на {date.strftime('%d-%m-%Y')}:\n" + ans
         await callback.message.answer(ans)
+    else:
+        await state.set_state(UserStatus.client)
+        await callback.message.answer("Произошла ошибка, повторите еще раз")
 
 
 @router.callback_query(F.data == "sign up for service")
@@ -155,6 +157,9 @@ async def input_time_to_add_schedule(
         await state.set_state(SchedulerClient.waiting_for_time_to_add_schedule)
         await state.update_data(date=date)
         await callback.message.answer("Введите желаемое время - час дня")
+    else:
+        await state.set_state(UserStatus.client)
+        await callback.message.answer("Произошла ошибка, повторите еще раз")
 
 
 @router.message(StateFilter(SchedulerClient.waiting_for_time_to_add_schedule))
@@ -198,3 +203,22 @@ async def add_schedule(callback: types.CallbackQuery, state: FSMContext):
     }
     res = await db.add_schedule(info)
     await callback.message.answer(res)
+
+
+@router.callback_query(F.data == "show events for client")
+async def show_events(callback: types.CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    user_id = user_data["user_id"]
+    res = await db.show_schedule(user_id)
+    if isinstance(res, str):
+        await callback.message.answer(res)
+        return
+
+    for note in res:
+        await callback.message.answer(
+            f"<b>Название услуги:</b> {note['service_name']}\n"
+            f"<b>Цена:</b> {note['price']}\n"
+            f"<b>Работник:</b> {note['name']}\n"
+            f"<b>Дата:</b> {note['date'].strftime('%d-%m-%Y %H-%M')}\n",
+            parse_mode="HTML",
+        )

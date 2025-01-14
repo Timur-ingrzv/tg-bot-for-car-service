@@ -4,6 +4,9 @@ from aiogram.fsm.context import FSMContext
 from keyboards.keyboards_for_unauthorized import get_start_keyboard
 
 
+FORBIDDEN_WORDS = ["insert", "select", "drop", "update"]
+
+
 class MessageLengthMiddleware(BaseMiddleware):
     def __init__(self):
         super().__init__()
@@ -24,5 +27,11 @@ class MessageLengthMiddleware(BaseMiddleware):
                 reply_markup=get_start_keyboard(),
             )
             return
-
+        if any(word in FORBIDDEN_WORDS for word in event.text.split()):
+            if fsm_context:
+                await fsm_context.clear()
+            await event.answer(
+                text=f"Сообщение содержит запрещенные слова",
+                reply_markup=get_start_keyboard(),
+            )
         return await handler(event, data)
