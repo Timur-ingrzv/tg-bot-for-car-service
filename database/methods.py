@@ -413,4 +413,4 @@ info = {
     "service_name": "Диагностика",
 }
 # res = asyncio.run(db.add_schedule_admin(info))
-print(res)
+# print(res)
