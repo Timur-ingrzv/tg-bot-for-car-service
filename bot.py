@@ -54,7 +54,7 @@ async def helper(message: Message, state: FSMContext, bot: Bot):
             "Доступные опции для клиента",
             reply_markup=get_interface_for_client(),
         )
-    elif cur_state == UserStatus.unauthorized.state:
+    else:
         await cmd_start(message, bot, state)
 
 

@@ -269,7 +269,39 @@ class MethodsSchedule:
         finally:
             await connection.close()
 
+    async def show_schedule_admin(self, start, end):
+        """Показывает все записи за промежуток"""
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            query = (
+                Query.from_(self.schedule)
+                .join(self.workers)
+                .on(self.workers.id == self.schedule.worker_id)
+                .join(self.users)
+                .on(self.users.id == self.schedule.client_id)
+                .join(self.services_info)
+                .on(self.services_info.id == self.schedule.service_id)
+                .select(
+                    self.users.name.as_("client_name"),
+                    self.workers.name.as_("worker_name"),
+                    self.schedule.date,
+                    self.services_info.service_name,
+                    self.services_info.price,
+                )
+                .where(self.schedule.date[start:end])
+            )
+            res = await connection.fetch(str(query))
+            return res
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка обращения к базе, повторите позже"
+
+        finally:
+            await connection.close()
+
     async def add_schedule_admin(self, info: Dict):
+        """Добавляет запись для клиента"""
         connection = await asyncpg.connect(**self.db_config)
         try:
             find_client = (
@@ -333,6 +365,7 @@ class MethodsSchedule:
             await connection.close()
 
     async def delete_schedule(self, name, date) -> str:
+        """Удаляет запись клиента"""
         connection = await asyncpg.connect(**self.db_config)
         try:
             find_query = (
@@ -375,6 +408,7 @@ class MethodsServices:
         self.working_time = Table("working_time")
 
     async def show_services(self):
+        """Показывает доступные услуги"""
         connection = await asyncpg.connect(**self.db_config)
         try:
             query = Query.from_(self.services_info).select(
@@ -405,12 +439,15 @@ info = {
     "phone_number": "9894",
     "chat_id": "123",
 }
-date = datetime.datetime.strptime("22-12-2024 17", "%d-%m-%Y %H")
+date1 = datetime.datetime.strptime("22-01-2025 17", "%d-%m-%Y %H")
+date2 = datetime.datetime.strptime("01-02-2025", "%d-%m-%Y")
+print(date2)
 info = {
     "date": datetime.datetime.now(),
     "client_name": "test_client1",
     "worker_name": "test_worker",
     "service_name": "Диагностика",
 }
-# res = asyncio.run(db.add_schedule_admin(info))
-# print(res)
+
+res = asyncio.run(db.show_schedule_admin(date1, date2))
+print(dict(res[0]))

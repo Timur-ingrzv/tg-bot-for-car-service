@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta, time
+from pyexpat.errors import messages
 
 from aiogram import F, Router, types
-from aiogram.filters import Command, StateFilter
+from aiogram.filters import StateFilter
 from aiogram.filters.callback_data import CallbackData
 from aiogram.fsm.context import FSMContext
 
@@ -13,7 +14,7 @@ from aiogram_calendar import (
 
 from database.methods import db
 from keyboards.keyboards_for_clients import get_services_to_add_schedule
-from utils.states import SchedulerAdmin, UserStatus, SchedulerClient
+from utils.states import SchedulerAdmin, UserStatus
 
 router = Router()
 
@@ -179,3 +180,98 @@ async def delete_scheduler(message: types.Message, state: FSMContext):
         await message.answer(
             "Неправильный формат времени - введите число от 0 до 23"
         )
+
+
+@router.callback_query(F.data == "show records for admin")
+async def input_start_date_to_show(
+    callback: types.CallbackQuery, state: FSMContext
+):
+    await state.set_state(SchedulerAdmin.waiting_for_start_to_show)
+    calendar = SimpleCalendar(
+        locale=await get_user_locale(callback.from_user), show_alerts=True
+    )
+    cur_time = datetime.now()
+    calendar.set_dates_range(
+        cur_time - timedelta(days=30), cur_time + timedelta(days=120)
+    )
+    await callback.message.answer(
+        "Выберите дату начала диапазона для просмотра",
+        reply_markup=await calendar.start_calendar(
+            year=cur_time.year, month=cur_time.month
+        ),
+    )
+
+
+@router.callback_query(
+    StateFilter(SchedulerAdmin.waiting_for_start_to_show),
+    SimpleCalendarCallback.filter(),
+)
+async def input_end_date_to_show(
+    callback: types.CallbackQuery,
+    state: FSMContext,
+    callback_data: CallbackData,
+):
+    calendar = SimpleCalendar(locale=await get_user_locale(callback.from_user))
+    cur_date = datetime.now()
+    calendar.set_dates_range(
+        cur_date - timedelta(days=30), cur_date + timedelta(days=120)
+    )
+    selected, date = await calendar.process_selection(callback, callback_data)
+    if selected:
+        await state.set_state(SchedulerAdmin.waiting_for_end_to_show)
+        await state.update_data(start=date)
+
+        calendar = SimpleCalendar(
+            locale=await get_user_locale(callback.from_user), show_alerts=True
+        )
+        cur_time = datetime.now()
+        calendar.set_dates_range(
+            cur_time - timedelta(days=30), cur_time + timedelta(days=120)
+        )
+        await callback.message.answer(
+            "Выберите дату конца диапазона для просмотра",
+            reply_markup=await calendar.start_calendar(
+                year=cur_time.year, month=cur_time.month
+            ),
+        )
+
+
+@router.callback_query(
+    StateFilter(SchedulerAdmin.waiting_for_end_to_show),
+    SimpleCalendarCallback.filter(),
+)
+async def show_schedule_for_admin(
+    callback: types.CallbackQuery,
+    state: FSMContext,
+    callback_data: CallbackData,
+):
+    calendar = SimpleCalendar(locale=await get_user_locale(callback.from_user))
+    cur_date = datetime.now()
+    calendar.set_dates_range(
+        cur_date - timedelta(days=30), cur_date + timedelta(days=120)
+    )
+    selected, date = await calendar.process_selection(callback, callback_data)
+    if selected:
+        await state.set_state(UserStatus.admin)
+        user_data = await state.get_data()
+        start = user_data["start"]
+        end = date
+        if start > end:
+            await callback.message.answer(
+                "Начало диапазона должно быть раньше конца"
+            )
+            return
+        schedule = await db.show_schedule_admin(start, end)
+        if not schedule:
+            await callback.message.answer("В данный период нет записей")
+            return
+
+        for note in schedule:
+            await callback.message.answer(
+                f"<b>Название услуги:</b> {note['service_name']}\n"
+                f"<b>Клиент:</b> {note['client_name']}\n"
+                f"<b>Работник:</b> {note['worker_name']}\n"
+                f"<b>Цена:</b> {note['price']}\n"
+                f"<b>Дата:</b> {note['date'].strftime('%d-%m-%Y %H-%M')}\n",
+                parse_mode="HTML",
+            )

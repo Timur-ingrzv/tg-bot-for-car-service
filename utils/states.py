@@ -39,3 +39,5 @@ class SchedulerAdmin(StatesGroup):
     waiting_for_name_to_delete = State()
     waiting_for_date_to_delete = State()
     waiting_for_time_to_delete = State()
+    waiting_for_start_to_show = State()
+    waiting_for_end_to_show = State()
