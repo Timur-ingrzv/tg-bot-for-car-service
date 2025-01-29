@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, time
-from pyexpat.errors import messages
 
 from aiogram import F, Router, types
 from aiogram.filters import StateFilter
@@ -11,10 +10,12 @@ from aiogram_calendar import (
     get_user_locale,
     SimpleCalendarCallback,
 )
+import logging
 
 from database.methods import db
+from keyboards.keyboards_for_administration import get_day_week
 from keyboards.keyboards_for_clients import get_services_to_add_schedule
-from utils.states import SchedulerAdmin, UserStatus
+from utils.states import SchedulerAdmin, UserStatus, ChangeWorkingTime
 
 router = Router()
 
@@ -275,3 +276,63 @@ async def show_schedule_for_admin(
                 f"<b>Дата:</b> {note['date'].strftime('%d-%m-%Y %H-%M')}\n",
                 parse_mode="HTML",
             )
+
+
+@router.callback_query(F.data == "change working time")
+async def input_worker_name(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(ChangeWorkingTime.waiting_worker_name)
+    await callback.message.answer("Введите имя работника")
+
+
+@router.message(StateFilter(ChangeWorkingTime.waiting_worker_name))
+async def input_weekday(message: types.Message, state: FSMContext):
+    worker_name = message.text.strip()
+    worker = await db.find_worker(worker_name)
+    if not worker:
+        await state.set_state(UserStatus.admin)
+        await message.answer("Работника с таким именем не существует")
+        return
+
+    await state.set_state(ChangeWorkingTime.waiting_weekday)
+    await state.update_data(worker_id=worker["id"])
+    await message.answer("Выберите день недели", reply_markup=get_day_week())
+
+
+@router.callback_query(
+    StateFilter(ChangeWorkingTime.waiting_weekday), F.data.startswith("day_")
+)
+async def input_time(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(ChangeWorkingTime.waiting_time)
+    weekday = int(callback.data.split("_")[1])
+    await state.update_data(weekday=weekday)
+    await callback.message.answer(
+        "Введите время начала и конца рабочего времени"
+        " в формате hours-hours(Если в этот день сотрудник"
+        " не работает, то введите 0)"
+    )
+
+
+@router.message(StateFilter(ChangeWorkingTime.waiting_time))
+async def change_working_time(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    await state.set_state(UserStatus.admin)
+    working_time = message.text.strip()
+    if working_time == "0":
+        res = await db.delete_working_time(
+            int(data["worker_id"]), int(data["weekday"])
+        )
+        await message.answer(res)
+        return
+
+    try:
+        start, end = map(int, working_time.split("-"))
+        start = time(hour=start)
+        end = time(hour=end)
+        res = await db.add_working_time(
+            int(data["worker_id"]), start, end, int(data["weekday"])
+        )
+        await message.answer(res)
+
+    except Exception as e:
+        logging.error(e)
+        await message.answer("Неправильный формат времени")

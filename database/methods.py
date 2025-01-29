@@ -1,6 +1,8 @@
 import asyncio
 import datetime
 import logging
+import time
+from calendar import weekday
 
 from typing import Dict, List
 import asyncpg
@@ -425,7 +427,131 @@ class MethodsServices:
             await connection.close()
 
 
-class Database(MethodsUsers, MethodsSchedule, MethodsServices):
+class MethodsWorkers:
+    def __init__(self, config: Dict):
+        self.db_config = config
+        self.users = Table("users_info")
+        self.services_info = Table("services_info")
+        self.schedule = Table("schedule")
+        self.workers = Table("workers_info")
+        self.working_time = Table("working_time")
+
+    async def find_worker(self, name: str) -> int:
+        """Находит id рабочего по имени"""
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            query = (
+                Query.from_(self.workers)
+                .select(self.workers.id)
+                .where(self.workers.name == name)
+            )
+            worker_id = await connection.fetchrow(str(query))
+            return worker_id
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка обращения к базе, повторите позже"
+
+        finally:
+            await connection.close()
+
+    async def add_working_time(
+        self,
+        worker_id: int,
+        start: datetime.datetime,
+        end: datetime.datetime,
+        weekday: int,
+    ) -> str:
+        """Добавляет время работы сотрудника"""
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            check_query = (
+                Query.from_(self.working_time)
+                .select(self.working_time.id)
+                .where(self.working_time.worker_id == worker_id)
+                .where(self.working_time.day_week == weekday)
+            )
+            check = await connection.fetch(str(check_query))
+            if check:
+                res = await self.change_working_time(
+                    worker_id, start, end, weekday
+                )
+                return res
+
+            query = (
+                Query.into(self.working_time)
+                .columns(
+                    self.working_time.worker_id,
+                    self.working_time.time_start,
+                    self.working_time.time_end,
+                    self.working_time.day_week,
+                )
+                .insert(
+                    worker_id,
+                    start.strftime("%H:00"),
+                    end.strftime("%H:00"),
+                    weekday,
+                )
+            )
+            await connection.execute(str(query))
+            return "Время работы успешно изменено"
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка обращения к базе, повторите позже"
+
+        finally:
+            await connection.close()
+
+    async def change_working_time(
+        self,
+        worker_id: int,
+        start: datetime.datetime,
+        end: datetime.datetime,
+        weekday: int,
+    ) -> str:
+        """Меняет время работы сотрудника"""
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            query = (
+                Query.update(self.working_time)
+                .set(self.working_time.time_start, start.strftime("%H:00"))
+                .set(self.working_time.time_end, end.strftime("%H:00"))
+                .where(self.working_time.worker_id == worker_id)
+                .where(self.working_time.day_week == weekday)
+            )
+            await connection.execute(str(query))
+            return "Время работы успешно изменено"
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка обращения к базе, повторите позже"
+
+        finally:
+            await connection.close()
+
+    async def delete_working_time(self, worker_id: int, weekday: int) -> str:
+        """Удаляет время работы в определенный день недели"""
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            query = (
+                Query.from_(self.working_time)
+                .delete()
+                .where(self.working_time.worker_id == worker_id)
+                .where(self.working_time.day_week == weekday)
+            )
+            await connection.execute(str(query))
+            return "Время работы успешно удалено"
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка обращения к базе, повторите позже"
+
+        finally:
+            await connection.close()
+
+
+class Database(MethodsUsers, MethodsSchedule, MethodsServices, MethodsWorkers):
     def __init__(self, conf):
         super().__init__(conf)
 
@@ -441,13 +567,17 @@ info = {
 }
 date1 = datetime.datetime.strptime("22-01-2025 17", "%d-%m-%Y %H")
 date2 = datetime.datetime.strptime("01-02-2025", "%d-%m-%Y")
-print(date2)
+
 info = {
     "date": datetime.datetime.now(),
     "client_name": "test_client1",
     "worker_name": "test_worker",
     "service_name": "Диагностика",
 }
+start = datetime.time(hour=17)
 
-res = asyncio.run(db.show_schedule_admin(date1, date2))
-print(dict(res[0]))
+end = datetime.time(hour=19)
+
+
+# res = asyncio.run(db.add_working_time(1, start, end, 6))
+# print(res)

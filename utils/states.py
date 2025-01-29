@@ -1,3 +1,5 @@
+from symtable import Class
+
 from aiogram.fsm.state import StatesGroup, State
 
 
@@ -41,3 +43,9 @@ class SchedulerAdmin(StatesGroup):
     waiting_for_time_to_delete = State()
     waiting_for_start_to_show = State()
     waiting_for_end_to_show = State()
+
+
+class ChangeWorkingTime(StatesGroup):
+    waiting_worker_name = State()
+    waiting_weekday = State()
+    waiting_time = State()
