@@ -135,7 +135,9 @@ async def input_time_to_delete(
     if selected:
         await state.set_state(SchedulerAdmin.waiting_for_time_to_delete)
         await state.update_data(date=date)
-        await callback.message.answer("Введите время записи для удаления (hours)")
+        await callback.message.answer(
+            "Введите время записи для удаления (hours)"
+        )
 
 
 @router.message(StateFilter(SchedulerAdmin.waiting_for_time_to_delete))
@@ -145,7 +147,9 @@ async def delete_scheduler(message: types.Message, state: FSMContext):
         valid_time = int(message.text.strip())
         if not (0 <= valid_time < 24):
             await state.set_state(UserStatus.client)
-            await message.answer("Время должно быть целое число в диапазоне от 0 до 23")
+            await message.answer(
+                "Время должно быть целое число в диапазоне от 0 до 23"
+            )
             return
 
         data = await state.get_data()
@@ -322,5 +326,22 @@ async def show_working_time(message: types.Message, state: FSMContext):
     for idx in range(7):
         ans += f"<b>{days[idx]}:</b> {working_time[idx]}\n"
 
+    await message.answer(ans, parse_mode="HTML")
 
-    await message.answer(ans, parse_mode = "HTML")
+
+@router.callback_query(F.data == "show workers info")
+async def show_workers_info(callback: types.CallbackQuery, state: FSMContext):
+    workers_groups = await db.show_workers_info()
+    if isinstance(workers_groups, str):
+        await callback.message.answer(workers_groups)
+        return
+    ans = ""
+    for el in workers_groups["working_free"]:
+        ans += f"<b>{el['name']}:</b> Рабочее время, свободен\n"
+    for el in workers_groups["working_not_free"]:
+        ans += (
+            f"<b>{el['name']}:</b> Рабочее время, занят выполнением услуги\n"
+        )
+    for el in workers_groups["not_working"]:
+        ans += f"<b>{el['name']}:</b> Не работает\n"
+    await callback.message.answer(ans, parse_mode="HTML")

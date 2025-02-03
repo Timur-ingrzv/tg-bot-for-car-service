@@ -455,6 +455,7 @@ class MethodsWorkers:
             await connection.close()
 
     async def show_working_time(self, worker_name):
+        """Показывает время работы работника по дням"""
         connection = await asyncpg.connect(**self.db_config)
         try:
             worker_id = await self.find_worker(worker_name)
@@ -466,7 +467,7 @@ class MethodsWorkers:
                 .select(
                     self.working_time.time_start,
                     self.working_time.time_end,
-                    self.working_time.day_week
+                    self.working_time.day_week,
                 )
                 .where(worker_id == self.working_time.worker_id)
                 .orderby(self.working_time.day_week)
@@ -576,6 +577,63 @@ class MethodsWorkers:
         finally:
             await connection.close()
 
+    async def show_workers_info(self):
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            date = datetime.datetime.now()
+            working_workers = (
+                Query.from_(self.working_time)
+                .select(self.working_time.worker_id)
+                .where(
+                    (self.working_time.day_week == date.weekday())
+                    & (self.working_time.time_start <= str(date.time()))
+                    & (self.working_time.time_end > str(date.time()))
+                )
+            )
+            busy_workers = (
+                Query.from_(self.schedule)
+                .select(self.schedule.worker_id)
+                .where(date.strftime("%Y-%m-%d %H:00") == self.schedule.date)
+            )
+            query_working_free = (
+                Query.from_(self.workers)
+                .select(self.workers.name)
+                .where(
+                    self.workers.id.isin(working_workers)
+                    & self.workers.id.notin(busy_workers)
+                )
+            )
+            working_free = await connection.fetch(str(query_working_free))
+
+            query_working_not_free = (
+                Query.from_(self.workers)
+                .select(self.workers.name)
+                .where(self.workers.id.isin(working_workers))
+                .where(self.workers.name.notin(query_working_free))
+            )
+            working_not_free = await connection.fetch(
+                str(query_working_not_free)
+            )
+
+            query_not_working = (
+                Query.from_(self.workers)
+                .select(self.workers.name)
+                .where(self.workers.id.notin(working_workers))
+            )
+            not_working = await connection.fetch(str(query_not_working))
+            return {
+                "working_free": working_free,
+                "working_not_free": working_not_free,
+                "not_working": not_working,
+            }
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка обращения к базе, повторите позже"
+
+        finally:
+            await connection.close()
+
 
 class Database(MethodsUsers, MethodsSchedule, MethodsServices, MethodsWorkers):
     def __init__(self, conf):
@@ -605,5 +663,5 @@ start = datetime.time(hour=17)
 end = datetime.time(hour=19)
 
 
-res = asyncio.run(db.show_working_time("test_worker"))
-print(res)
+# res = asyncio.run(db.show_workers_info())
+# print(res)

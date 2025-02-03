@@ -1,9 +1,7 @@
 from datetime import timedelta, datetime
 
-from aiogram_calendar import (
-    SimpleCalendar,
-    get_user_locale
-)
+from aiogram_calendar import SimpleCalendar, get_user_locale
+
 
 async def get_calendar(user_id):
     calendar = SimpleCalendar(
