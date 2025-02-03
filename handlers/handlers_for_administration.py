@@ -1,3 +1,4 @@
+from crypt import methods
 from datetime import datetime, timedelta, time
 
 from aiogram import F, Router, types
@@ -15,6 +16,7 @@ import logging
 from database.methods import db
 from keyboards.keyboards_for_administration import get_day_week
 from keyboards.keyboards_for_clients import get_services_to_add_schedule
+from utils.calendar import get_calendar
 from utils.states import SchedulerAdmin, UserStatus, ChangeWorkingTime
 
 router = Router()
@@ -50,13 +52,7 @@ async def input_date_to_add(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state(SchedulerAdmin.waiting_for_date_to_add)
     service_name = callback.data.split("_", maxsplit=1)[1]
     await state.update_data(service_name=service_name)
-    calendar = SimpleCalendar(
-        locale=await get_user_locale(callback.from_user), show_alerts=True
-    )
-    cur_time = datetime.now()
-    calendar.set_dates_range(
-        cur_time - timedelta(days=30), cur_time + timedelta(days=120)
-    )
+    calendar, cur_time = await get_calendar(callback.from_user)
     await callback.message.answer(
         "Выберите дату для удаления записи",
         reply_markup=await calendar.start_calendar(
@@ -74,11 +70,7 @@ async def input_time_to_add(
     state: FSMContext,
     callback_data: CallbackData,
 ):
-    calendar = SimpleCalendar(locale=await get_user_locale(callback.from_user))
-    cur_date = datetime.now()
-    calendar.set_dates_range(
-        cur_date - timedelta(days=30), cur_date + timedelta(days=120)
-    )
+    calendar, cur_time = await get_calendar(callback.from_user)
     selected, date = await calendar.process_selection(callback, callback_data)
     if selected:
         await state.set_state(SchedulerAdmin.waiting_for_time_to_add)
@@ -125,13 +117,7 @@ async def input_date_to_delete(message: types.Message, state: FSMContext):
     name = message.text.strip()
     await state.update_data(name=name)
     await state.set_state(SchedulerAdmin.waiting_for_date_to_delete)
-    calendar = SimpleCalendar(
-        locale=await get_user_locale(message.from_user), show_alerts=True
-    )
-    cur_time = datetime.now()
-    calendar.set_dates_range(
-        cur_time - timedelta(days=30), cur_time + timedelta(days=120)
-    )
+    calendar, cur_time = await get_calendar(message.from_user)
     await message.answer(
         "Выберите дату для удаления записи",
         reply_markup=await calendar.start_calendar(
@@ -149,16 +135,12 @@ async def input_time_to_delete(
     state: FSMContext,
     callback_data: CallbackData,
 ):
-    calendar = SimpleCalendar(locale=await get_user_locale(callback.from_user))
-    cur_date = datetime.now()
-    calendar.set_dates_range(
-        cur_date - timedelta(days=30), cur_date + timedelta(days=120)
-    )
+    calendar, cur_time = await get_calendar(callback.from_user)
     selected, date = await calendar.process_selection(callback, callback_data)
     if selected:
         await state.set_state(SchedulerAdmin.waiting_for_time_to_delete)
         await state.update_data(date=date)
-        await callback.message.answer("Введите время записи для удаления")
+        await callback.message.answer("Введите время записи для удаления (hours)")
 
 
 @router.message(StateFilter(SchedulerAdmin.waiting_for_time_to_delete))
@@ -168,7 +150,7 @@ async def delete_scheduler(message: types.Message, state: FSMContext):
         valid_time = int(message.text.strip())
         if not (0 <= valid_time < 24):
             await state.set_state(UserStatus.client)
-            await message.answer("Время должно быть в диапазоне от 0 до 23")
+            await message.answer("Время должно быть целое число в диапазоне от 0 до 23")
             return
 
         data = await state.get_data()
@@ -188,13 +170,7 @@ async def input_start_date_to_show(
     callback: types.CallbackQuery, state: FSMContext
 ):
     await state.set_state(SchedulerAdmin.waiting_for_start_to_show)
-    calendar = SimpleCalendar(
-        locale=await get_user_locale(callback.from_user), show_alerts=True
-    )
-    cur_time = datetime.now()
-    calendar.set_dates_range(
-        cur_time - timedelta(days=30), cur_time + timedelta(days=120)
-    )
+    calendar, cur_time = await get_calendar(callback.from_user)
     await callback.message.answer(
         "Выберите дату начала диапазона для просмотра",
         reply_markup=await calendar.start_calendar(
@@ -212,23 +188,13 @@ async def input_end_date_to_show(
     state: FSMContext,
     callback_data: CallbackData,
 ):
-    calendar = SimpleCalendar(locale=await get_user_locale(callback.from_user))
-    cur_date = datetime.now()
-    calendar.set_dates_range(
-        cur_date - timedelta(days=30), cur_date + timedelta(days=120)
-    )
+    calendar, cur_time = await get_calendar(callback.from_user)
     selected, date = await calendar.process_selection(callback, callback_data)
     if selected:
         await state.set_state(SchedulerAdmin.waiting_for_end_to_show)
         await state.update_data(start=date)
 
-        calendar = SimpleCalendar(
-            locale=await get_user_locale(callback.from_user), show_alerts=True
-        )
-        cur_time = datetime.now()
-        calendar.set_dates_range(
-            cur_time - timedelta(days=30), cur_time + timedelta(days=120)
-        )
+        calendar, cur_time = await get_calendar(callback.from_user)
         await callback.message.answer(
             "Выберите дату конца диапазона для просмотра",
             reply_markup=await calendar.start_calendar(
@@ -246,17 +212,13 @@ async def show_schedule_for_admin(
     state: FSMContext,
     callback_data: CallbackData,
 ):
-    calendar = SimpleCalendar(locale=await get_user_locale(callback.from_user))
-    cur_date = datetime.now()
-    calendar.set_dates_range(
-        cur_date - timedelta(days=30), cur_date + timedelta(days=120)
-    )
+    calendar, cur_time = await get_calendar(callback.from_user)
     selected, date = await calendar.process_selection(callback, callback_data)
     if selected:
         await state.set_state(UserStatus.admin)
         user_data = await state.get_data()
         start = user_data["start"]
-        end = date
+        end = date + timedelta(days=1)
         if start > end:
             await callback.message.answer(
                 "Начало диапазона должно быть раньше конца"

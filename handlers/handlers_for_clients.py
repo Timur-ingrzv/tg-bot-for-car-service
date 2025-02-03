@@ -4,17 +4,14 @@ from aiogram import F, Router, types
 from aiogram.filters import StateFilter
 from aiogram.filters.callback_data import CallbackData
 from aiogram.fsm.context import FSMContext
-from aiogram_calendar import (
-    SimpleCalendar,
-    get_user_locale,
-    SimpleCalendarCallback,
-)
+from aiogram_calendar import SimpleCalendarCallback
 
 from database.methods import db
 from keyboards.keyboards_for_clients import (
     get_interface_change_profile,
     get_services_to_add_schedule,
 )
+from utils.calendar import get_calendar
 from utils.states import ChangeUserProfile, UserStatus, SchedulerClient
 
 router = Router()
@@ -71,13 +68,7 @@ async def input_date_for_scheduler(
     callback: types.CallbackQuery, state: FSMContext
 ):
     await state.set_state(SchedulerClient.waiting_for_date_to_show_schedule)
-    calendar = SimpleCalendar(
-        locale=await get_user_locale(callback.from_user), show_alerts=True
-    )
-    cur_time = datetime.now()
-    calendar.set_dates_range(
-        cur_time - timedelta(days=30), cur_time + timedelta(days=120)
-    )
+    calendar, cur_time = await get_calendar(callback.from_user)
     await callback.message.answer(
         "Выберите желаемую дату",
         reply_markup=await calendar.start_calendar(
@@ -95,11 +86,7 @@ async def show_schedule(
     state: FSMContext,
     callback_data: CallbackData,
 ):
-    calendar = SimpleCalendar(locale=await get_user_locale(callback.from_user))
-    cur_date = datetime.now()
-    calendar.set_dates_range(
-        cur_date - timedelta(days=30), cur_date + timedelta(days=120)
-    )
+    calendar, cur_date = await get_calendar(callback.from_user)
     selected, date = await calendar.process_selection(callback, callback_data)
     if selected:
         await state.set_state(UserStatus.client)
@@ -119,13 +106,7 @@ async def input_date_to_add_schedule(
     callback: types.CallbackQuery, state: FSMContext
 ):
     await state.set_state(SchedulerClient.waiting_for_date_to_add_schedule)
-    calendar = SimpleCalendar(
-        locale=await get_user_locale(callback.from_user), show_alerts=True
-    )
-    cur_time = datetime.now()
-    calendar.set_dates_range(
-        cur_time - timedelta(days=30), cur_time + timedelta(days=120)
-    )
+    calendar, cur_time = await get_calendar(callback.from_user)
     await callback.message.answer(
         "Выберите желаемую дату",
         reply_markup=await calendar.start_calendar(
@@ -143,13 +124,13 @@ async def input_time_to_add_schedule(
     state: FSMContext,
     callback_data: CallbackData,
 ):
-    calendar = SimpleCalendar(locale=await get_user_locale(callback.from_user))
-    cur_date = datetime.now()
-    calendar.set_dates_range(
-        cur_date - timedelta(days=30), cur_date + timedelta(days=120)
-    )
+    calendar, cur_date = await get_calendar(callback.from_user)
     selected, date = await calendar.process_selection(callback, callback_data)
     if selected:
+        if date < cur_date:
+            await callback.message.answer("Выберите дату позже текущей")
+            await state.set_state(UserStatus.client)
+            return
         await state.set_state(SchedulerClient.waiting_for_time_to_add_schedule)
         await state.update_data(date=date)
         await callback.message.answer("Введите желаемое время - час дня")
@@ -166,6 +147,10 @@ async def input_service_name(message: types.Message, state: FSMContext):
 
         data = await state.get_data()
         valid_date = datetime.combine(data["date"], time(hour=valid_time))
+        if valid_date < datetime.now():
+            await message.answer("Выберите время позже текщуего")
+            await state.set_state(UserStatus.client)
+            return
         await state.update_data(date=valid_date)
 
     except Exception as e:
