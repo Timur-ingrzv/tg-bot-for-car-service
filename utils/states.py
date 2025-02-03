@@ -45,7 +45,9 @@ class SchedulerAdmin(StatesGroup):
     waiting_for_end_to_show = State()
 
 
-class ChangeWorkingTime(StatesGroup):
+class WorkingTime(StatesGroup):
     waiting_worker_name = State()
     waiting_weekday = State()
     waiting_time = State()
+
+    waiting_worker_name_to_show = State()

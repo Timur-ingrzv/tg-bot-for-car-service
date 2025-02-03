@@ -1,4 +1,3 @@
-from crypt import methods
 from datetime import datetime, timedelta, time
 
 from aiogram import F, Router, types
@@ -6,18 +5,14 @@ from aiogram.filters import StateFilter
 from aiogram.filters.callback_data import CallbackData
 from aiogram.fsm.context import FSMContext
 
-from aiogram_calendar import (
-    SimpleCalendar,
-    get_user_locale,
-    SimpleCalendarCallback,
-)
+from aiogram_calendar import SimpleCalendarCallback
 import logging
 
 from database.methods import db
 from keyboards.keyboards_for_administration import get_day_week
 from keyboards.keyboards_for_clients import get_services_to_add_schedule
 from utils.calendar import get_calendar
-from utils.states import SchedulerAdmin, UserStatus, ChangeWorkingTime
+from utils.states import SchedulerAdmin, UserStatus, WorkingTime
 
 router = Router()
 
@@ -242,11 +237,11 @@ async def show_schedule_for_admin(
 
 @router.callback_query(F.data == "change working time")
 async def input_worker_name(callback: types.CallbackQuery, state: FSMContext):
-    await state.set_state(ChangeWorkingTime.waiting_worker_name)
+    await state.set_state(WorkingTime.waiting_worker_name)
     await callback.message.answer("Введите имя работника")
 
 
-@router.message(StateFilter(ChangeWorkingTime.waiting_worker_name))
+@router.message(StateFilter(WorkingTime.waiting_worker_name))
 async def input_weekday(message: types.Message, state: FSMContext):
     worker_name = message.text.strip()
     worker = await db.find_worker(worker_name)
@@ -255,16 +250,16 @@ async def input_weekday(message: types.Message, state: FSMContext):
         await message.answer("Работника с таким именем не существует")
         return
 
-    await state.set_state(ChangeWorkingTime.waiting_weekday)
+    await state.set_state(WorkingTime.waiting_weekday)
     await state.update_data(worker_id=worker["id"])
     await message.answer("Выберите день недели", reply_markup=get_day_week())
 
 
 @router.callback_query(
-    StateFilter(ChangeWorkingTime.waiting_weekday), F.data.startswith("day_")
+    StateFilter(WorkingTime.waiting_weekday), F.data.startswith("day_")
 )
 async def input_time(callback: types.CallbackQuery, state: FSMContext):
-    await state.set_state(ChangeWorkingTime.waiting_time)
+    await state.set_state(WorkingTime.waiting_time)
     weekday = int(callback.data.split("_")[1])
     await state.update_data(weekday=weekday)
     await callback.message.answer(
@@ -274,7 +269,7 @@ async def input_time(callback: types.CallbackQuery, state: FSMContext):
     )
 
 
-@router.message(StateFilter(ChangeWorkingTime.waiting_time))
+@router.message(StateFilter(WorkingTime.waiting_time))
 async def change_working_time(message: types.Message, state: FSMContext):
     data = await state.get_data()
     await state.set_state(UserStatus.admin)
@@ -298,3 +293,34 @@ async def change_working_time(message: types.Message, state: FSMContext):
     except Exception as e:
         logging.error(e)
         await message.answer("Неправильный формат времени")
+
+
+@router.callback_query(F.data == "show working time for worker")
+async def input_worker_name(callback: types.callback_query, state: FSMContext):
+    await state.set_state(WorkingTime.waiting_worker_name_to_show)
+    await callback.message.answer("Введите имя работника")
+
+
+@router.message(StateFilter(WorkingTime.waiting_worker_name_to_show))
+async def show_working_time(message: types.Message, state: FSMContext):
+    await state.set_state(UserStatus.admin)
+    worker_name = message.text
+    res = await db.show_working_time(worker_name)
+    if isinstance(res, str):
+        await message.answer(res)
+        return
+
+    ans = f"<b>{worker_name}</b>\n"
+    days = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
+    working_time = ["Не работает"] * 7
+    for day in res:
+        working_time[day["day_week"]] = (
+            f"{day['time_start'].strftime("%H:%M")} - "
+            f"{day['time_end'].strftime("%H:%M")}"
+        )
+
+    for idx in range(7):
+        ans += f"<b>{days[idx]}:</b> {working_time[idx]}\n"
+
+
+    await message.answer(ans, parse_mode = "HTML")

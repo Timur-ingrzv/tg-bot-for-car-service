@@ -446,7 +446,33 @@ class MethodsWorkers:
                 .where(self.workers.name == name)
             )
             worker_id = await connection.fetchrow(str(query))
-            return worker_id
+            if not worker_id:
+                return None
+            else:
+                return worker_id["id"]
+
+        finally:
+            await connection.close()
+
+    async def show_working_time(self, worker_name):
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            worker_id = await self.find_worker(worker_name)
+            if not worker_id:
+                return "Работника с таким именем нет"
+
+            query = (
+                Query.from_(self.working_time)
+                .select(
+                    self.working_time.time_start,
+                    self.working_time.time_end,
+                    self.working_time.day_week
+                )
+                .where(worker_id == self.working_time.worker_id)
+                .orderby(self.working_time.day_week)
+            )
+            res = await connection.fetch(str(query))
+            return res
 
         except Exception as e:
             logging.error(e)
@@ -579,5 +605,5 @@ start = datetime.time(hour=17)
 end = datetime.time(hour=19)
 
 
-# res = asyncio.run(db.add_working_time(1, start, end, 6))
-# print(res)
+res = asyncio.run(db.show_working_time("test_worker"))
+print(res)

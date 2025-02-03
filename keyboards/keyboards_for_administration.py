@@ -21,8 +21,20 @@ def get_interface_for_admin():
         ],
         [
             types.InlineKeyboardButton(
+                text="Посмотреть информацию о работниках",
+                callback_data="show workers info"
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
                 text="Изменить рабочее время сотрудника",
                 callback_data="change working time",
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="Посмотреть рабочее время сотрудника",
+                callback_data="show working time for worker"
             )
         ],
         [
