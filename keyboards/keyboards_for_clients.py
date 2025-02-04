@@ -69,11 +69,11 @@ def get_interface_change_profile():
 
 async def get_services_to_add_schedule():
     services = await db.show_services()
-    available_services = [service["service_name"] for service in services]
+    available_services = [(service["service_name"], service["price"]) for service in services]
     buttons = [
         [
             types.InlineKeyboardButton(
-                text=f"{service}", callback_data=f"choose-service_{service}"
+                text=f"{service[0]} - {service[1]} руб.", callback_data=f"choose-service_{service[0]}"
             )
         ]
         for service in available_services

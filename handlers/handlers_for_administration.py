@@ -71,7 +71,7 @@ async def input_time_to_add(
     if selected:
         await state.set_state(SchedulerAdmin.waiting_for_time_to_add)
         await state.update_data(date=date)
-        await callback.message.answer("Введите время записи для добавления")
+        await callback.message.answer("Введите время записи для добавления - час дня")
 
 
 @router.message(StateFilter(SchedulerAdmin.waiting_for_time_to_add))
@@ -137,7 +137,7 @@ async def input_time_to_delete(
         await state.set_state(SchedulerAdmin.waiting_for_time_to_delete)
         await state.update_data(date=date)
         await callback.message.answer(
-            "Введите время записи для удаления (hours)"
+            "Введите время записи для удаления - час дня"
         )
 
 
@@ -464,3 +464,8 @@ async def get_statistic(message: types.Message, state: FSMContext):
         f"<b>Количество услуг:</b> {total_services}\n"
     )
     await message.answer(ans, parse_mode="HTML")
+
+
+@router.message()
+async def not_handled_message(message: types.Message):
+    await message.answer("Я вас не понимаю, используйте кнопки или напишите /help")
