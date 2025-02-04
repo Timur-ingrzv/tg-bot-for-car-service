@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import F, Router, types
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
@@ -60,6 +62,7 @@ async def authorization(message: types.Message, state: FSMContext):
     else:
         await state.update_data(user_id=user["id"])
         await state.update_data(status=user["status"])
+        await db.change_chat_id(user["id"], message.chat.id)
         # выбираем интерфейс от статуса
         if user["status"] == "client":
             await state.set_state(UserStatus.client)
@@ -67,7 +70,6 @@ async def authorization(message: types.Message, state: FSMContext):
         else:
             await state.set_state(UserStatus.admin)
             interface = get_interface_for_admin()
-
         await message.answer(
             f"С возвращением, {user['name']}", reply_markup=interface
         )

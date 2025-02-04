@@ -1,8 +1,6 @@
 import asyncio
 import datetime
 import logging
-import time
-from calendar import weekday
 
 from typing import Dict, List
 import asyncpg
@@ -38,6 +36,22 @@ class MethodsUsers:
         except Exception as e:
             logging.error(e)
             return {"status": "Ошибка подключения, повторите позже"}
+
+        finally:
+            await connection.close()
+
+    async def change_chat_id(self, user_id, chat_id) -> None:
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            query = (
+                Query.update(self.users)
+                .set(self.users.chat_id, chat_id)
+                .where(self.users.id == user_id)
+            )
+            await connection.execute(str(query))
+
+        except Exception as e:
+            logging.error(e)
 
         finally:
             await connection.close()
@@ -345,7 +359,13 @@ class MethodsSchedule:
             res = await connection.fetch(str(check_worker_time))
             if res:
                 return "Работник в данное время занят"
-
+            check_is_working = (
+                Query.from_(self.working_time)
+                .select(self.working_time.id)
+                .where(self.working_time.start <= str(info["date"].time()))
+                .where(self.working_time.end < str(info["date"].time()))
+                .where(self.working_time.day_week == info["date"].da)
+            )
             query = (
                 Query.into(self.schedule)
                 .columns(
@@ -419,6 +439,38 @@ class MethodsSchedule:
                 .orderby(self.workers.name)
             )
             res = await connection.fetch(str(query_payouts))
+            return res
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка обращения к базе, повторите позже"
+
+        finally:
+            await connection.close()
+
+    async def find_service_for_notification(self, delay):
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            cur_time = datetime.datetime.now() + datetime.timedelta(hours=2)
+            delta = datetime.timedelta(seconds=delay / 2 + 5)
+            query = (
+                Query.from_(self.schedule)
+                .join(self.users)
+                .on(self.users.id == self.schedule.client_id)
+                .join(self.services_info)
+                .on(self.services_info.id == self.schedule.service_id)
+                .join(self.workers)
+                .on(self.workers.id == self.schedule.worker_id)
+                .select(
+                    self.users.chat_id,
+                    self.services_info.service_name,
+                    self.services_info.price,
+                    self.workers.name,
+                    self.schedule.date,
+                )
+                .where(self.schedule.date[cur_time - delta : cur_time + delta])
+            )
+            res = await connection.fetch(str(query))
             return res
 
         except Exception as e:
@@ -687,9 +739,9 @@ info = {
     "worker_name": "test_worker",
     "service_name": "Диагностика",
 }
-start = datetime.datetime.strptime("2025-02-04", "%Y-%m-%d")
+start = datetime.datetime.strptime("2025-02-04 18:52", "%Y-%m-%d %H:%M")
 
 end = datetime.datetime.strptime("2026-04-05", "%Y-%m-%d")
 
-#res = asyncio.run(db.get_statistic(start, end))
-#print(res[0])
+res = asyncio.run(db.find_service_for_notification(60))
+print(res)

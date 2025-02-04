@@ -3,6 +3,7 @@ from aiogram.fsm.context import FSMContext
 import config
 from aiogram import Bot, Dispatcher
 from aiogram.filters.command import Command, Message
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from handlers import (
     handlers_for_unauthorized,
@@ -12,13 +13,15 @@ from handlers import (
 from keyboards import keyboards_for_unauthorized
 from keyboards.keyboards_for_administration import get_interface_for_admin
 from keyboards.keyboards_for_clients import get_interface_for_client
+from utils.notifications import notifications
 from utils.states import UserStatus
 
 # Объект бота
 bot = Bot(token=config.BOT_TOKEN)
 # Диспетчер
 dp = Dispatcher()
-
+# Планировщик
+scheduler = AsyncIOScheduler()
 
 # Запуск процесса поллинга новых апдейтов
 async def main():
@@ -27,6 +30,8 @@ async def main():
         handlers_for_clients.router,
         handlers_for_administration.router,
     )
+    scheduler.add_job(notifications, "interval", seconds=15)  # Задача каждые 15 минут
+    scheduler.start()
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
