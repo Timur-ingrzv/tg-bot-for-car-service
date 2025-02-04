@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, time
-from multiprocessing.managers import State
 
 from aiogram import F, Router, types
 from aiogram.filters import StateFilter
@@ -71,7 +70,9 @@ async def input_time_to_add(
     if selected:
         await state.set_state(SchedulerAdmin.waiting_for_time_to_add)
         await state.update_data(date=date)
-        await callback.message.answer("Введите время записи для добавления - час дня")
+        await callback.message.answer(
+            "Введите время записи для добавления - час дня"
+        )
 
 
 @router.message(StateFilter(SchedulerAdmin.waiting_for_time_to_add))
@@ -468,4 +469,6 @@ async def get_statistic(message: types.Message, state: FSMContext):
 
 @router.message()
 async def not_handled_message(message: types.Message):
-    await message.answer("Я вас не понимаю, используйте кнопки или напишите /help")
+    await message.answer(
+        "Я вас не понимаю, используйте кнопки или напишите /help"
+    )

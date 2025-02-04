@@ -12,6 +12,7 @@ from handlers import (
 from keyboards import keyboards_for_unauthorized
 from keyboards.keyboards_for_administration import get_interface_for_admin
 from keyboards.keyboards_for_clients import get_interface_for_client
+from utils.notifications import notifications
 from utils.states import UserStatus
 
 # Объект бота
@@ -27,6 +28,7 @@ async def main():
         handlers_for_clients.router,
         handlers_for_administration.router,
     )
+    t = asyncio.create_task(notifications())
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
