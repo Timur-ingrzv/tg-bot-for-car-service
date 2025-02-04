@@ -199,6 +199,6 @@ async def show_events(callback: types.CallbackQuery, state: FSMContext):
             f"<b>Название услуги:</b> {note['service_name']}\n"
             f"<b>Цена:</b> {note['price']}\n"
             f"<b>Работник:</b> {note['name']}\n"
-            f"<b>Дата:</b> {note['date'].strftime('%d-%m-%Y %H-%M')}\n",
+            f"<b>Дата:</b> {note['date'].strftime('%d-%m-%Y %H:%M')}\n",
             parse_mode="HTML",
         )

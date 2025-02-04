@@ -71,7 +71,7 @@ async def input_time_to_add(
     if selected:
         await state.set_state(SchedulerAdmin.waiting_for_time_to_add)
         await state.update_data(date=date)
-        await callback.message.answer("Введите время записи для добавления")
+        await callback.message.answer("Введите время записи для добавления - час дня")
 
 
 @router.message(StateFilter(SchedulerAdmin.waiting_for_time_to_add))
@@ -137,7 +137,7 @@ async def input_time_to_delete(
         await state.set_state(SchedulerAdmin.waiting_for_time_to_delete)
         await state.update_data(date=date)
         await callback.message.answer(
-            "Введите время записи для удаления (hours)"
+            "Введите время записи для удаления - час дня"
         )
 
 
@@ -249,14 +249,14 @@ async def input_worker_name(callback: types.CallbackQuery, state: FSMContext):
 @router.message(StateFilter(WorkingTime.waiting_worker_name))
 async def input_weekday(message: types.Message, state: FSMContext):
     worker_name = message.text.strip()
-    worker = await db.find_worker(worker_name)
-    if not worker:
+    worker_id = await db.find_worker(worker_name)
+    if not worker_id:
         await state.set_state(UserStatus.admin)
         await message.answer("Работника с таким именем не существует")
         return
 
     await state.set_state(WorkingTime.waiting_weekday)
-    await state.update_data(worker_id=worker["id"])
+    await state.update_data(worker_id=worker_id)
     await message.answer("Выберите день недели", reply_markup=get_day_week())
 
 
@@ -320,8 +320,8 @@ async def show_working_time(message: types.Message, state: FSMContext):
     working_time = ["Не работает"] * 7
     for day in res:
         working_time[day["day_week"]] = (
-            f"{day['time_start'].strftime("%H:%M")} - "
-            f"{day['time_end'].strftime("%H:%M")}"
+            f"{day['time_start'].strftime('%H:%M')} - "
+            f"{day['time_end'].strftime('%H:%M')}"
         )
 
     for idx in range(7):
@@ -464,3 +464,8 @@ async def get_statistic(message: types.Message, state: FSMContext):
         f"<b>Количество услуг:</b> {total_services}\n"
     )
     await message.answer(ans, parse_mode="HTML")
+
+
+@router.message()
+async def not_handled_message(message: types.Message):
+    await message.answer("Я вас не понимаю, используйте кнопки или напишите /help")

@@ -691,5 +691,5 @@ start = datetime.datetime.strptime("2025-02-04", "%Y-%m-%d")
 
 end = datetime.datetime.strptime("2026-04-05", "%Y-%m-%d")
 
-res = asyncio.run(db.get_statistic(start, end))
-print(res[0])
+#res = asyncio.run(db.get_statistic(start, end))
+#print(res[0])
