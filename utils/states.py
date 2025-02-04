@@ -51,3 +51,10 @@ class WorkingTime(StatesGroup):
     waiting_time = State()
 
     waiting_worker_name_to_show = State()
+
+
+class Statistic(StatesGroup):
+    waiting_start_date = State()
+    waiting_start_time = State()
+    waiting_end_date = State()
+    waiting_end_time = State()

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, time
+from multiprocessing.managers import State
 
 from aiogram import F, Router, types
 from aiogram.filters import StateFilter
@@ -12,7 +13,7 @@ from database.methods import db
 from keyboards.keyboards_for_administration import get_day_week
 from keyboards.keyboards_for_clients import get_services_to_add_schedule
 from utils.calendar import get_calendar
-from utils.states import SchedulerAdmin, UserStatus, WorkingTime
+from utils.states import SchedulerAdmin, UserStatus, WorkingTime, Statistic
 
 router = Router()
 
@@ -308,7 +309,7 @@ async def input_worker_name(callback: types.callback_query, state: FSMContext):
 @router.message(StateFilter(WorkingTime.waiting_worker_name_to_show))
 async def show_working_time(message: types.Message, state: FSMContext):
     await state.set_state(UserStatus.admin)
-    worker_name = message.text
+    worker_name = message.text.strip()
     res = await db.show_working_time(worker_name)
     if isinstance(res, str):
         await message.answer(res)
@@ -345,3 +346,121 @@ async def show_workers_info(callback: types.CallbackQuery, state: FSMContext):
     for el in workers_groups["not_working"]:
         ans += f"<b>{el['name']}:</b> Не работает\n"
     await callback.message.answer(ans, parse_mode="HTML")
+
+
+@router.callback_query(F.data == "statistic")
+async def input_start_date(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(Statistic.waiting_start_date)
+    calendar, cur_time = await get_calendar(callback.from_user)
+    await callback.message.answer(
+        "Выберите дату начала промежутка",
+        reply_markup=await calendar.start_calendar(
+            year=cur_time.year, month=cur_time.month
+        ),
+    )
+
+
+@router.callback_query(
+    StateFilter(Statistic.waiting_start_date),
+    SimpleCalendarCallback.filter(),
+)
+async def input_start_time(
+    callback: types.CallbackQuery,
+    state: FSMContext,
+    callback_data: CallbackData,
+):
+    calendar, cur_time = await get_calendar(callback.from_user)
+    selected, date = await calendar.process_selection(callback, callback_data)
+    if selected:
+        await state.update_data(start_date=date)
+        await state.set_state(Statistic.waiting_start_time)
+        await callback.message.answer(
+            "Введите время начала промежутка в формате hours:minutes"
+        )
+
+
+@router.message(StateFilter(Statistic.waiting_start_time))
+async def input_end_date(message: types.CallbackQuery, state: FSMContext):
+    await state.set_state(Statistic.waiting_end_date)
+    start_time = message.text.strip()
+    try:
+        start_time = datetime.strptime(start_time, "%H:%M")
+    except Exception as e:
+        await message.answer("Время должно быть в формате hours:minutes")
+        await state.set_state(UserStatus.admin)
+        return
+    user_data = await state.get_data()
+    start_date = user_data["start_date"]
+    start_date = datetime.combine(start_date, start_time.time())
+    await state.update_data(start_date=start_date)
+
+    calendar, cur_time = await get_calendar(message.from_user)
+    await message.answer(
+        "Выберите дату конца промежутка",
+        reply_markup=await calendar.start_calendar(
+            year=cur_time.year, month=cur_time.month
+        ),
+    )
+
+
+@router.callback_query(
+    StateFilter(Statistic.waiting_end_date),
+    SimpleCalendarCallback.filter(),
+)
+async def input_end_time(
+    callback: types.CallbackQuery,
+    state: FSMContext,
+    callback_data: CallbackData,
+):
+    calendar, cur_time = await get_calendar(callback.from_user)
+    selected, date = await calendar.process_selection(callback, callback_data)
+    if selected:
+        await state.update_data(end_date=date)
+        await state.set_state(Statistic.waiting_end_time)
+        await callback.message.answer(
+            "Введите время конца промежутка в формате hours:minutes"
+        )
+
+
+@router.message(StateFilter(Statistic.waiting_end_time))
+async def get_statistic(message: types.Message, state: FSMContext):
+    await state.set_state(UserStatus.admin)
+    end_time = message.text.strip()
+    try:
+        end_time = datetime.strptime(end_time, "%H:%M")
+    except Exception as e:
+        await message.answer("Время должно быть в формате hours:minutes")
+        return
+    user_data = await state.get_data()
+    start_date = user_data["start_date"]
+    end_date = user_data["end_date"]
+    end_date = datetime.combine(end_date, end_time.time())
+
+    stat = await db.get_statistic(start_date, end_date)
+    if not stat:
+        await message.answer("В данный период нет ни одной записи")
+        return
+    if isinstance(stat, str):
+        await message.answer(stat)
+        return
+
+    ans = ""
+    total_price = 0
+    total_payouts = 0
+    total_services = 0
+    for worker in stat:
+        total_price += worker["total_price"]
+        total_payouts += worker["payout"]
+        total_services += worker["total_services"]
+        ans += (
+            f"<i>{worker['name']}:</i>\n"
+            f"Прибыль: {worker['total_price']}\n"
+            f"Количество оказанных услуг: {worker['total_services']}\n"
+            f"Выплаты сотруднику: {worker['payout']}\n\n"
+        )
+    ans += (
+        f"<b>Общая прибыль:</b> {total_price}\n"
+        f"<b>Общие выплаты:</b> {total_payouts}\n"
+        f"<b>Количество услуг:</b> {total_services}\n"
+    )
+    await message.answer(ans, parse_mode="HTML")

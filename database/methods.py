@@ -6,7 +6,7 @@ from calendar import weekday
 
 from typing import Dict, List
 import asyncpg
-from pypika import Table, Query
+from pypika import Table, Query, functions as fn
 
 from config import DATABASE_CONFIG
 
@@ -399,6 +399,35 @@ class MethodsSchedule:
         finally:
             await connection.close()
 
+    async def get_statistic(self, start_date, end_date):
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            query_payouts = (
+                Query.from_(self.schedule)
+                .join(self.workers)
+                .on(self.workers.id == self.schedule.worker_id)
+                .join(self.services_info)
+                .on(self.services_info.id == self.schedule.service_id)
+                .select(
+                    self.workers.name,
+                    fn.Sum(self.services_info.price).as_("total_price"),
+                    fn.Count(self.schedule.id).as_("total_services"),
+                    fn.Sum(self.services_info.payout_worker).as_("payout"),
+                )
+                .where(self.schedule.date[start_date:end_date])
+                .groupby(self.workers.name)
+                .orderby(self.workers.name)
+            )
+            res = await connection.fetch(str(query_payouts))
+            return res
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка обращения к базе, повторите позже"
+
+        finally:
+            await connection.close()
+
 
 class MethodsServices:
     def __init__(self, config: Dict):
@@ -658,10 +687,9 @@ info = {
     "worker_name": "test_worker",
     "service_name": "Диагностика",
 }
-start = datetime.time(hour=17)
+start = datetime.datetime.strptime("2025-02-04", "%Y-%m-%d")
 
-end = datetime.time(hour=19)
+end = datetime.datetime.strptime("2026-04-05", "%Y-%m-%d")
 
-
-# res = asyncio.run(db.show_workers_info())
-# print(res)
+res = asyncio.run(db.get_statistic(start, end))
+print(res[0])
