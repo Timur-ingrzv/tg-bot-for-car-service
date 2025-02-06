@@ -5,6 +5,44 @@ def get_interface_for_admin():
     buttons = [
         [
             types.InlineKeyboardButton(
+                text="Клиенты", callback_data="clients"
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="Сотрудники", callback_data="workers"
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="Расписание", callback_data="schedule"
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="Статистика", callback_data="statistic"
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="Изменить данные профиля",
+                callback_data="change profile data",
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="Выйти из профиля", callback_data="exit profile"
+            )
+        ],
+    ]
+    keyboard = types.InlineKeyboardMarkup(inline_keyboard=buttons)
+    return keyboard
+
+
+def get_interface_manage_schedule():
+    buttons = [
+        [
+            types.InlineKeyboardButton(
                 text="Добавить запись", callback_data="add record"
             )
         ],
@@ -21,10 +59,36 @@ def get_interface_for_admin():
         ],
         [
             types.InlineKeyboardButton(
+                text="Назад",
+                callback_data="back admin",
+            )
+        ]
+    ]
+    keyboard = types.InlineKeyboardMarkup(inline_keyboard=buttons)
+    return keyboard
+
+
+def get_interface_manage_clients():
+    buttons = [
+        [
+            types.InlineKeyboardButton(
                 text="Посмотреть список клиентов",
                 callback_data="show clients",
             )
         ],
+        [
+            types.InlineKeyboardButton(
+                text="Назад",
+                callback_data="back admin",
+            )
+        ]
+    ]
+    keyboard = types.InlineKeyboardMarkup(inline_keyboard=buttons)
+    return keyboard
+
+
+def get_interface_manage_workers():
+    buttons = [
         [
             types.InlineKeyboardButton(
                 text="Посмотреть информацию о работниках",
@@ -45,20 +109,10 @@ def get_interface_for_admin():
         ],
         [
             types.InlineKeyboardButton(
-                text="Статистика", callback_data="statistic"
+                text="Назад",
+                callback_data="back admin",
             )
-        ],
-        [
-            types.InlineKeyboardButton(
-                text="Изменить данные профиля",
-                callback_data="change profile data",
-            )
-        ],
-        [
-            types.InlineKeyboardButton(
-                text="Выйти из профиля", callback_data="exit profile"
-            )
-        ],
+        ]
     ]
     keyboard = types.InlineKeyboardMarkup(inline_keyboard=buttons)
     return keyboard

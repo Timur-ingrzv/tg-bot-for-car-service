@@ -11,13 +11,46 @@ import logging
 from database.methods import db
 from keyboards.keyboards_for_administration import (
     get_day_week,
-    generate_page_buttons,
+    generate_page_buttons, get_interface_manage_clients, get_interface_manage_workers, get_interface_manage_schedule,
+    get_interface_for_admin,
 )
 from keyboards.keyboards_for_clients import get_services_to_add_schedule
 from utils.calendar import get_calendar
 from utils.states import SchedulerAdmin, UserStatus, WorkingTime, Statistic
 
 router = Router()
+
+
+@router.callback_query(F.data == "clients")
+async def show_managment_of_clients(callback: types.CallbackQuery):
+    await callback.message.answer(
+        "Управление клиентами",
+        reply_markup=get_interface_manage_clients()
+    )
+
+
+@router.callback_query(F.data == "workers")
+async def show_managment_of_clients(callback: types.CallbackQuery):
+    await callback.message.answer(
+        "Управление сотрудниками",
+        reply_markup=get_interface_manage_workers()
+    )
+
+
+@router.callback_query(F.data == "schedule")
+async def show_managment_of_clients(callback: types.CallbackQuery):
+    await callback.message.answer(
+        "Управление расписанием",
+        reply_markup=get_interface_manage_schedule()
+    )
+
+
+@router.callback_query(F.data == "back admin")
+async def go_back_admin(callback: types.CallbackQuery):
+    await callback.message.answer(
+        "Доступные опции для администратора:",
+        reply_markup=get_interface_for_admin()
+    )
 
 
 @router.callback_query(F.data == "add record")
