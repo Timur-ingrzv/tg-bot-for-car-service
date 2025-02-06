@@ -40,6 +40,27 @@ class MethodsUsers:
         finally:
             await connection.close()
 
+    async def find_all_users(self, page: int):
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            query = (
+                Query.from_(self.users)
+                .select(self.users.name)
+                .limit(10)
+                .offset((page - 1) * 10)
+                .orderby(self.users.name)
+                .where(self.users.status == "client")
+            )
+            res = await connection.fetch(str(query))
+            return [user["name"] for user in res]
+
+        except Exception as e:
+            logging.error(e)
+            return {"status": "Ошибка подключения, повторите позже"}
+
+        finally:
+            await connection.close()
+
     async def change_chat_id(self, user_id, chat_id) -> None:
         connection = await asyncpg.connect(**self.db_config)
         try:
@@ -743,5 +764,5 @@ start = datetime.datetime.strptime("2025-02-04 18:52", "%Y-%m-%d %H:%M")
 
 end = datetime.datetime.strptime("2026-04-05", "%Y-%m-%d")
 
-res = asyncio.run(db.find_service_for_notification(60))
+res = asyncio.run(db.find_all_users(1))
 print(res)

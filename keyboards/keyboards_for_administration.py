@@ -21,6 +21,12 @@ def get_interface_for_admin():
         ],
         [
             types.InlineKeyboardButton(
+                text="Посмотреть список клиентов",
+                callback_data="show clients",
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
                 text="Посмотреть информацию о работниках",
                 callback_data="show workers info",
             )
@@ -76,5 +82,27 @@ def get_day_week():
             )
         ],
     ]
+    keyboard = types.InlineKeyboardMarkup(inline_keyboard=buttons)
+    return keyboard
+
+
+def generate_page_buttons(page: int, end: bool):
+    buttons = []
+    if page > 1:
+        buttons.append(
+            [
+                types.InlineKeyboardButton(
+                    text="Назад", callback_data=f"page:{page - 1}"
+                )
+            ]
+        )
+    if not end:
+        buttons.append(
+            [
+                types.InlineKeyboardButton(
+                    text="Вперед", callback_data=f"page:{page + 1}"
+                )
+            ]
+        )
     keyboard = types.InlineKeyboardMarkup(inline_keyboard=buttons)
     return keyboard

@@ -9,7 +9,10 @@ from aiogram_calendar import SimpleCalendarCallback
 import logging
 
 from database.methods import db
-from keyboards.keyboards_for_administration import get_day_week
+from keyboards.keyboards_for_administration import (
+    get_day_week,
+    generate_page_buttons,
+)
 from keyboards.keyboards_for_clients import get_services_to_add_schedule
 from utils.calendar import get_calendar
 from utils.states import SchedulerAdmin, UserStatus, WorkingTime, Statistic
@@ -465,6 +468,32 @@ async def get_statistic(message: types.Message, state: FSMContext):
         f"<b>Количество услуг:</b> {total_services}\n"
     )
     await message.answer(ans, parse_mode="HTML")
+
+
+@router.callback_query(F.data == "show clients")
+async def show_users(callback: types.CallbackQuery):
+    users = await db.find_all_users(1)
+    info = "<b>Клиенты: (Стр. 1)</b>\n" + "\n".join(users)
+    end = True if len(users) < 10 else False
+    await callback.message.answer(
+        info, reply_markup=generate_page_buttons(1, end), parse_mode="HTML"
+    )
+
+
+@router.callback_query(F.data.startswith("page:"))
+async def send_new_page(callback: types.CallbackQuery):
+    page = int(callback.data.split(":")[1])
+    users = await db.find_all_users(page)
+    end = True if len(users) < 10 else False
+    from bot import bot
+
+    await bot.edit_message_text(
+        chat_id=callback.message.chat.id,
+        message_id=callback.message.message_id,
+        text=f"<b>Клиенты: (Стр. {page})</b>\n" + "\n".join(users),
+        reply_markup=generate_page_buttons(page, end),
+        parse_mode="HTML",
+    )
 
 
 @router.message()

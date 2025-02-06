@@ -24,4 +24,3 @@ async def notifications():
         except Exception as e:
             logging.error(e)
             continue
-

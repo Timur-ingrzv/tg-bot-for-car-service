@@ -23,6 +23,7 @@ dp = Dispatcher()
 # Планировщик
 scheduler = AsyncIOScheduler()
 
+
 # Запуск процесса поллинга новых апдейтов
 async def main():
     dp.include_routers(
@@ -30,7 +31,9 @@ async def main():
         handlers_for_clients.router,
         handlers_for_administration.router,
     )
-    scheduler.add_job(notifications, "interval", seconds=15)  # Задача каждые 15 минут
+    scheduler.add_job(
+        notifications, "interval", minutes=15
+    )  # Задача каждые 15 минут
     scheduler.start()
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
