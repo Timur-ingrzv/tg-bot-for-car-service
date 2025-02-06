@@ -17,7 +17,7 @@ class MessageLengthMiddleware(BaseMiddleware):
         fsm_context: FSMContext = data.get("fsm_context")
         if (
             len(event.text.strip()) > self.max_length
-            or len(event.text.strip()) < 4
+            or len(event.text.strip()) < 3
         ):
             if fsm_context:
                 await fsm_context.clear()
@@ -27,11 +27,15 @@ class MessageLengthMiddleware(BaseMiddleware):
                 reply_markup=get_start_keyboard(),
             )
             return
+        return await handler(event, data)
+
+
+class SQLInjectionMiddleware(BaseMiddleware):
+    def __init__(self):
+        super().__init__()
+
+    async def __call__(self, handler, event: types.Message, data: dict):
         if any(word.lower() in FORBIDDEN_WORDS for word in event.text.split()):
-            if fsm_context:
-                await fsm_context.clear()
-            await event.answer(
-                text=f"Сообщение содержит запрещенные слова",
-                reply_markup=get_start_keyboard(),
-            )
+            await event.answer(text=f"Сообщение содержит запрещенные слова")
+            return
         return await handler(event, data)

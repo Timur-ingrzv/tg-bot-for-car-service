@@ -764,5 +764,5 @@ start = datetime.datetime.strptime("2025-02-04 18:52", "%Y-%m-%d %H:%M")
 
 end = datetime.datetime.strptime("2026-04-05", "%Y-%m-%d")
 
-res = asyncio.run(db.find_all_users(1))
-print(res)
+# res = asyncio.run(db.find_all_users(1))
+# print(res)

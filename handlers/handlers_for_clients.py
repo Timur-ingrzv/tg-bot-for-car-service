@@ -12,9 +12,11 @@ from keyboards.keyboards_for_clients import (
     get_services_to_add_schedule,
 )
 from utils.calendar import get_calendar
+from utils.middlewares import SQLInjectionMiddleware
 from utils.states import ChangeUserProfile, UserStatus, SchedulerClient
 
 router = Router()
+router.message.middleware(SQLInjectionMiddleware())
 
 
 @router.callback_query(F.data == "exit profile")

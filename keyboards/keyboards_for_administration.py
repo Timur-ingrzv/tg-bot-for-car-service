@@ -3,11 +3,7 @@ from aiogram import types
 
 def get_interface_for_admin():
     buttons = [
-        [
-            types.InlineKeyboardButton(
-                text="Клиенты", callback_data="clients"
-            )
-        ],
+        [types.InlineKeyboardButton(text="Клиенты", callback_data="clients")],
         [
             types.InlineKeyboardButton(
                 text="Сотрудники", callback_data="workers"
@@ -62,7 +58,7 @@ def get_interface_manage_schedule():
                 text="Назад",
                 callback_data="back admin",
             )
-        ]
+        ],
     ]
     keyboard = types.InlineKeyboardMarkup(inline_keyboard=buttons)
     return keyboard
@@ -81,7 +77,7 @@ def get_interface_manage_clients():
                 text="Назад",
                 callback_data="back admin",
             )
-        ]
+        ],
     ]
     keyboard = types.InlineKeyboardMarkup(inline_keyboard=buttons)
     return keyboard
@@ -112,7 +108,7 @@ def get_interface_manage_workers():
                 text="Назад",
                 callback_data="back admin",
             )
-        ]
+        ],
     ]
     keyboard = types.InlineKeyboardMarkup(inline_keyboard=buttons)
     return keyboard

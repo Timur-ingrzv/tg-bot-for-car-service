@@ -8,12 +8,13 @@ from keyboards import keyboards_for_unauthorized
 from keyboards.keyboards_for_administration import get_interface_for_admin
 from keyboards.keyboards_for_clients import get_interface_for_client
 from keyboards.keyboards_for_unauthorized import get_start_keyboard
-from utils.middlewares import MessageLengthMiddleware
+from utils.middlewares import MessageLengthMiddleware, SQLInjectionMiddleware
 from utils.states import Authorization, UserStatus, Registration
 from database.methods import db
 
 router = Router()
 router.message.middleware.register(MessageLengthMiddleware())
+router.message.middleware(SQLInjectionMiddleware())
 
 
 @router.callback_query(F.data == "services")
