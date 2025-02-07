@@ -66,3 +66,5 @@ class UsersAdmin(StatesGroup):
     waiting_for_password = State()
     waiting_for_phone_number = State()
     waiting_for_status = State()
+
+    waiting_for_name_to_delete = State()

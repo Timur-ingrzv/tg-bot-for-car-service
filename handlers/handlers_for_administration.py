@@ -566,8 +566,8 @@ async def input_phone_number(message: types.Message, state: FSMContext):
 
 
 @router.message(StateFilter(UsersAdmin.waiting_for_phone_number))
-async def registration(message: types.Message, state: FSMContext):
-    phone_number = message.text
+async def input_status(message: types.Message, state: FSMContext):
+    phone_number = message.text.strip()
     if len(phone_number.strip()) != 11:
         await state.set_state(UserStatus.admin)
         await message.answer(
@@ -600,6 +600,21 @@ async def add_user(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.answer("Пользователь добавлен")
     else:
         await callback.message.answer(res)
+
+
+@router.callback_query(F.data == "delete user")
+async def input_name(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(UsersAdmin.waiting_for_name_to_delete)
+    await callback.message.answer("Введите имя пользователя для удаления:")
+
+
+@router.message(StateFilter(UsersAdmin.waiting_for_name_to_delete))
+async def delete_user(message: types.CallbackQuery, state: FSMContext):
+    await state.set_state(UserStatus.admin)
+    name = message.text.strip()
+    data = await state.get_data()
+    res = await db.delete_user(name, data["user_id"])
+    await message.answer(res)
 
 
 @router.message()

@@ -103,7 +103,7 @@ async def input_phone_number(message: types.Message, state: FSMContext):
 
 @router.message(StateFilter(Registration.waiting_for_phone_number))
 async def registration(message: types.Message, state: FSMContext):
-    phone_number = message.text
+    phone_number = message.text.strip()
     if len(phone_number.strip()) != 11:
         await state.clear()
         await message.answer(

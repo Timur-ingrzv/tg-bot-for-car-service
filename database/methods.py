@@ -140,6 +140,46 @@ class MethodsUsers:
             logging.error(e)
             return "Ошибка подключения, повторите позже"
 
+        finally:
+            await connection.close()
+
+    async def delete_user(self, name: str, id_admin: int) -> str:
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            check_exist_query = (
+                Query.from_(self.users)
+                .select(self.users.id)
+                .where(self.users.name == name)
+            )
+            res = await connection.fetch(str(check_exist_query))
+            if not res:
+                return "Пользователя с таким именем не существует"
+
+            check_self_query = (
+                Query.from_(self.users)
+                .select(self.users.id)
+                .where(self.users.id == id_admin)
+                .where(self.users.name == name)
+            )
+            res = await connection.fetch(str(check_self_query))
+            if res:
+                return "Нельзя удалить свой профиль"
+
+            query = (
+                Query.from_(self.users)
+                .delete()
+                .where(self.users.name == name)
+            )
+            await connection.execute(str(query))
+            return "Пользователь удален"
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка подключения, повторите позже"
+
+        finally:
+            await connection.close()
+
 
 class MethodsSchedule:
     def __init__(self, config: Dict):
@@ -380,13 +420,18 @@ class MethodsSchedule:
             res = await connection.fetch(str(check_worker_time))
             if res:
                 return "Работник в данное время занят"
+
             check_is_working = (
                 Query.from_(self.working_time)
                 .select(self.working_time.id)
                 .where(self.working_time.start <= str(info["date"].time()))
                 .where(self.working_time.end < str(info["date"].time()))
-                .where(self.working_time.day_week == info["date"].da)
+                .where(self.working_time.day_week == info["date"].weekday())
             )
+            res = await connection.fetch(str(check_is_working))
+            if not res:
+                return "Работник в данное время не работает"
+
             query = (
                 Query.into(self.schedule)
                 .columns(
