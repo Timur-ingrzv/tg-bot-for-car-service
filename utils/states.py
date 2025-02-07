@@ -68,3 +68,4 @@ class UsersAdmin(StatesGroup):
     waiting_for_status = State()
 
     waiting_for_name_to_delete = State()
+    waiting_for_name_to_show_info = State()

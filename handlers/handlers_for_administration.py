@@ -33,10 +33,10 @@ router = Router()
 router.message.middleware(SQLInjectionMiddleware())
 
 
-@router.callback_query(F.data == "clients")
+@router.callback_query(F.data == "users")
 async def show_managment_of_clients(callback: types.CallbackQuery):
     await callback.message.answer(
-        "Управление клиентами", reply_markup=get_interface_manage_users()
+        "Управление пользователями", reply_markup=get_interface_manage_users()
     )
 
 
@@ -649,6 +649,37 @@ async def delete_user(message: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     res = await db.delete_user(name, data["user_id"])
     await message.answer(res)
+
+
+@router.callback_query(F.data == "show user info")
+async def input_name(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(UsersAdmin.waiting_for_name_to_show_info)
+    await callback.message.answer("Введите имя пользователя")
+
+
+@router.message(StateFilter(UsersAdmin.waiting_for_name_to_show_info))
+async def show_info(message: types.CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    user_id = data["user_id"]
+    await state.set_state(UserStatus.admin)
+    name = message.text.strip()
+    res = await db.show_user_info(name)
+    if not res:
+        await message.answer("Пользователя с таким именем не существует")
+        return
+
+    password = "Скрыт"
+    if res["id"] == user_id or res["status"] == "client":
+        password = res["password"]
+    status = "Клиент" if res["status"] == "client" else "Администратор"
+    await message.answer(
+        f"<b>Имя:</b> {name}\n"
+        f"<b>Логин:</b> {res["login"]}\n"
+        f"<b>Пароль:</b> {password}\n"
+        f"<b>Статус:</b> {status}\n"
+        f"<b>Номер телефона:</b> {res["phone_number"]}\n",
+        parse_mode="HTML",
+    )
 
 
 @router.message()

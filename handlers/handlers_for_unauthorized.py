@@ -82,13 +82,22 @@ async def input_name(callback: types.CallbackQuery, state: FSMContext):
 
 @router.message(StateFilter(Registration.waiting_for_name))
 async def input_login(message: types.Message, state: FSMContext):
-    await state.update_data(name=message.text.strip())
+    name = message.text.strip()
+    if await db.check_existing(name=name):
+        await message.answer("Данное имя занято, попробуйте другое")
+        return
+
+    await state.update_data(name=name)
     await state.set_state(Registration.waiting_for_login)
     await message.answer("Введите логин")
 
 
 @router.message(StateFilter(Registration.waiting_for_login))
 async def input_password(message: types.Message, state: FSMContext):
+    login = message.text.strip()
+    if await db.check_existing(login=login):
+        await message.answer("Данный логин занят, попробуйте другой")
+        return
     await state.update_data(login=message.text.strip())
     await state.set_state(Registration.waiting_for_password)
     await message.answer("Введите пароль")

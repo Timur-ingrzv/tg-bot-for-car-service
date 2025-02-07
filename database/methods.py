@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import logging
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 import asyncpg
 from pypika import Table, Query, functions as fn
 
@@ -17,6 +17,31 @@ class MethodsUsers:
         self.schedule = Table("schedule")
         self.workers = Table("workers_info")
         self.working_time = Table("working_time")
+
+    async def check_existing(self, name: str = "", login: str = "") -> bool:
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            if name != "":
+                column = self.users.name
+                check = name
+            else:
+                column = self.users.login
+                check = login
+
+            query = (
+                Query.from_(self.users)
+                .select(self.users.id)
+                .where(column == check)
+            )
+            res = await connection.fetch(str(query))
+            return bool(res)
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка подключения, повторите позже"
+
+        finally:
+            await connection.close()
 
     async def find_user(self, login: str, password: str) -> Dict:
         """Метод нахождения пользователя по паре логин-пароль"""
@@ -170,6 +195,30 @@ class MethodsUsers:
             )
             await connection.execute(str(query))
             return "Пользователь удален"
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка подключения, повторите позже"
+
+        finally:
+            await connection.close()
+
+    async def show_user_info(self, name: str):
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            query = (
+                Query.from_(self.users)
+                .select(
+                    self.users.id,
+                    self.users.login,
+                    self.users.password,
+                    self.users.phone_number,
+                    self.users.status,
+                )
+                .where(self.users.name == name)
+            )
+            res = await connection.fetchrow(str(query))
+            return res
 
         except Exception as e:
             logging.error(e)
@@ -809,5 +858,5 @@ start = datetime.datetime.strptime("2025-02-04 18:52", "%Y-%m-%d %H:%M")
 
 end = datetime.datetime.strptime("2026-04-05", "%Y-%m-%d")
 
-# res = asyncio.run(db.find_all_users(1))
+# res = asyncio.run(db.show_user_info("test_client1"))
 # print(res)
