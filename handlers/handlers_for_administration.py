@@ -130,6 +130,11 @@ async def add_scheduler(message: types.Message, state: FSMContext):
             return
 
         data = await state.get_data()
+        await state.clear()
+        await state.set_state(UserStatus.admin)
+        await state.update_data(user_id=data["user_id"])
+        await state.update_data(status=data["status"])
+
         valid_date = datetime.combine(data["date"], time(hour=valid_time))
         info = {
             "date": valid_date,
@@ -200,12 +205,17 @@ async def delete_scheduler(message: types.Message, state: FSMContext):
             return
 
         data = await state.get_data()
+        await state.clear()
+        await state.set_state(UserStatus.admin)
+        await state.update_data(user_id=data["user_id"])
+        await state.update_data(status=data["status"])
+
         valid_date = datetime.combine(data["date"], time(hour=valid_time))
         name = data["name"]
         res = await db.delete_schedule(name, valid_date)
         await message.answer(res)
 
-    except Exception as e:
+    except Exception:
         await message.answer(
             "Неправильный формат времени - введите число от 0 до 23"
         )
@@ -261,8 +271,12 @@ async def show_schedule_for_admin(
     calendar, cur_time = await get_calendar(callback.from_user)
     selected, date = await calendar.process_selection(callback, callback_data)
     if selected:
-        await state.set_state(UserStatus.admin)
         user_data = await state.get_data()
+        await state.clear()
+        await state.update_data(user_id=user_data["user_id"])
+        await state.update_data(status=user_data["status"])
+        await state.set_state(UserStatus.admin)
+
         start = user_data["start"]
         end = date + timedelta(days=1)
         if start > end:
@@ -323,7 +337,11 @@ async def input_time(callback: types.CallbackQuery, state: FSMContext):
 @router.message(StateFilter(WorkingTime.waiting_time))
 async def change_working_time(message: types.Message, state: FSMContext):
     data = await state.get_data()
+    await state.clear()
+    await state.update_data(user_id=data["user_id"])
+    await state.update_data(status=data["status"])
     await state.set_state(UserStatus.admin)
+
     working_time = message.text.strip()
     if working_time == "0":
         res = await db.delete_working_time(
@@ -470,14 +488,18 @@ async def input_end_time(
 
 @router.message(StateFilter(Statistic.waiting_end_time))
 async def get_statistic(message: types.Message, state: FSMContext):
+    user_data = await state.get_data()
+    await state.clear()
+    await state.update_data(user_id=user_data["user_id"])
+    await state.update_data(status=user_data["status"])
     await state.set_state(UserStatus.admin)
+
     end_time = message.text.strip()
     try:
         end_time = datetime.strptime(end_time, "%H:%M")
     except Exception as e:
         await message.answer("Время должно быть в формате hours:minutes")
         return
-    user_data = await state.get_data()
     start_date = user_data["start_date"]
     end_date = user_data["end_date"]
     end_date = datetime.combine(end_date, end_time.time())
@@ -591,6 +613,7 @@ async def add_user(callback: types.CallbackQuery, state: FSMContext):
     await state.clear()
     await state.set_state(UserStatus.admin)
     await state.update_data(user_id=data["user_id"])
+    await state.update_data(status=data["status"])
 
     # Добавляем пользователя
     data["chat_id"] = None

@@ -47,6 +47,10 @@ async def input_new_value(callback: types.CallbackQuery, state: FSMContext):
 @router.message(StateFilter(ChangeUserProfile.waiting_for_new_value))
 async def change_user_profile(message: types.Message, state: FSMContext):
     data = await state.get_data()
+    await state.clear()
+    await state.update_data(user_id=data["user_id"])
+    await state.update_data(status=data["status"])
+
     if data["status"] == "client":
         await state.set_state(UserStatus.client)
     else:
@@ -175,8 +179,11 @@ async def input_service_name(message: types.Message, state: FSMContext):
     F.data.startswith("choose-service_"),
 )
 async def add_schedule(callback: types.CallbackQuery, state: FSMContext):
-    await state.set_state(UserStatus.client)
     data = await state.get_data()
+    await state.set_state(UserStatus.client)
+    await state.update_data(user_id=data["user_id"])
+    await state.update_data(status=data["status"])
+
     service_name = callback.data.split("_", maxsplit=1)[1]
     info = {
         "date": data["date"],
