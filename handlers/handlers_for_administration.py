@@ -93,6 +93,17 @@ async def input_date_to_add(callback: types.CallbackQuery, state: FSMContext):
     service_name = callback.data.split("_", maxsplit=1)[1]
     await state.update_data(service_name=service_name)
     calendar, cur_time = await get_calendar(callback.from_user)
+
+    from bot import bot
+
+    await bot.edit_message_text(
+        chat_id=callback.message.chat.id,
+        message_id=callback.message.message_id,
+        text=f"Вы выбрали услугу <b>{service_name}</b>",
+        reply_markup=None,
+        parse_mode="HTML",
+    )
+
     await callback.message.answer(
         "Выберите дату для удаления записи",
         reply_markup=await calendar.start_calendar(

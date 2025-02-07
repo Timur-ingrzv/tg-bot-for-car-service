@@ -40,6 +40,15 @@ async def input_new_value(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(
         changed_field=callback.data.split("_", maxsplit=1)[1]
     )
+    from bot import bot
+
+    await bot.edit_message_text(
+        chat_id=callback.message.chat.id,
+        message_id=callback.message.message_id,
+        text=f"Вы для изменения выбрали поле <b>{callback.data.split('_', maxsplit=1)[1]}</b>",
+        reply_markup=None,
+        parse_mode="HTML",
+    )
     await state.set_state(ChangeUserProfile.waiting_for_new_value)
     await callback.message.answer("Введите новое значение")
 
@@ -185,6 +194,15 @@ async def add_schedule(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(status=data["status"])
 
     service_name = callback.data.split("_", maxsplit=1)[1]
+    from bot import bot
+
+    await bot.edit_message_text(
+        chat_id=callback.message.chat.id,
+        message_id=callback.message.message_id,
+        text=f"Вы выбрали услугу <b>{service_name}</b>",
+        reply_markup=None,
+        parse_mode="HTML",
+    )
     info = {
         "date": data["date"],
         "client_id": data["user_id"],

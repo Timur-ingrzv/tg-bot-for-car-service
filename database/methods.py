@@ -166,9 +166,7 @@ class MethodsUsers:
                 return "Нельзя удалить свой профиль"
 
             query = (
-                Query.from_(self.users)
-                .delete()
-                .where(self.users.name == name)
+                Query.from_(self.users).delete().where(self.users.name == name)
             )
             await connection.execute(str(query))
             return "Пользователь удален"
@@ -424,8 +422,10 @@ class MethodsSchedule:
             check_is_working = (
                 Query.from_(self.working_time)
                 .select(self.working_time.id)
-                .where(self.working_time.start <= str(info["date"].time()))
-                .where(self.working_time.end < str(info["date"].time()))
+                .where(
+                    self.working_time.time_start <= str(info["date"].time())
+                )
+                .where(self.working_time.time_end > str(info["date"].time()))
                 .where(self.working_time.day_week == info["date"].weekday())
             )
             res = await connection.fetch(str(check_is_working))
