@@ -64,8 +64,18 @@ def get_interface_manage_schedule():
     return keyboard
 
 
-def get_interface_manage_clients():
+def get_interface_manage_users():
     buttons = [
+        [
+            types.InlineKeyboardButton(
+                text="Добавить пользователя", callback_data="add user"
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="Удалить пользователя", callback_data="delete user"
+            )
+        ],
         [
             types.InlineKeyboardButton(
                 text="Посмотреть список клиентов",
@@ -154,5 +164,22 @@ def generate_page_buttons(page: int, end: bool):
                 )
             ]
         )
+    keyboard = types.InlineKeyboardMarkup(inline_keyboard=buttons)
+    return keyboard
+
+
+def get_status():
+    buttons = [
+        [
+            types.InlineKeyboardButton(
+                text="Клиент", callback_data="chosen_status:client"
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="Администратор", callback_data="chosen_status:admin"
+            )
+        ],
+    ]
     keyboard = types.InlineKeyboardMarkup(inline_keyboard=buttons)
     return keyboard

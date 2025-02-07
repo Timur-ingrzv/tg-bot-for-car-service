@@ -12,15 +12,22 @@ from database.methods import db
 from keyboards.keyboards_for_administration import (
     get_day_week,
     generate_page_buttons,
-    get_interface_manage_clients,
+    get_interface_manage_users,
     get_interface_manage_workers,
     get_interface_manage_schedule,
     get_interface_for_admin,
+    get_status,
 )
 from keyboards.keyboards_for_clients import get_services_to_add_schedule
 from utils.calendar import get_calendar
 from utils.middlewares import SQLInjectionMiddleware
-from utils.states import SchedulerAdmin, UserStatus, WorkingTime, Statistic
+from utils.states import (
+    SchedulerAdmin,
+    UserStatus,
+    WorkingTime,
+    Statistic,
+    UsersAdmin,
+)
 
 router = Router()
 router.message.middleware(SQLInjectionMiddleware())
@@ -29,7 +36,7 @@ router.message.middleware(SQLInjectionMiddleware())
 @router.callback_query(F.data == "clients")
 async def show_managment_of_clients(callback: types.CallbackQuery):
     await callback.message.answer(
-        "Управление клиентами", reply_markup=get_interface_manage_clients()
+        "Управление клиентами", reply_markup=get_interface_manage_users()
     )
 
 
@@ -529,6 +536,70 @@ async def send_new_page(callback: types.CallbackQuery):
         reply_markup=generate_page_buttons(page, end),
         parse_mode="HTML",
     )
+
+
+@router.callback_query(F.data == "add user")
+async def input_name(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(UsersAdmin.waiting_for_name)
+    await callback.message.answer("Введите имя")
+
+
+@router.message(StateFilter(UsersAdmin.waiting_for_name))
+async def input_login(message: types.Message, state: FSMContext):
+    await state.update_data(name=message.text.strip())
+    await state.set_state(UsersAdmin.waiting_for_login)
+    await message.answer("Введите логин")
+
+
+@router.message(StateFilter(UsersAdmin.waiting_for_login))
+async def input_password(message: types.Message, state: FSMContext):
+    await state.update_data(login=message.text.strip())
+    await state.set_state(UsersAdmin.waiting_for_password)
+    await message.answer("Введите пароль")
+
+
+@router.message(StateFilter(UsersAdmin.waiting_for_password))
+async def input_phone_number(message: types.Message, state: FSMContext):
+    await state.update_data(password=message.text.strip())
+    await state.set_state(UsersAdmin.waiting_for_phone_number)
+    await message.answer("Введите номер телефона(только цифры начиная с 8)")
+
+
+@router.message(StateFilter(UsersAdmin.waiting_for_phone_number))
+async def registration(message: types.Message, state: FSMContext):
+    phone_number = message.text
+    if len(phone_number.strip()) != 11:
+        await state.set_state(UserStatus.admin)
+        await message.answer(
+            "Неправильный номер телефона, должно быть 11 символов"
+        )
+        return
+    await state.set_state(UsersAdmin.waiting_for_status)
+    await state.update_data(phone_number=phone_number)
+    await message.answer(
+        "Выберите статус пользователя", reply_markup=get_status()
+    )
+
+
+@router.callback_query(
+    StateFilter(UsersAdmin.waiting_for_status),
+    F.data.startswith("chosen_status:"),
+)
+async def add_user(callback: types.CallbackQuery, state: FSMContext):
+    # Восстанавливаем state
+    data = await state.get_data()
+    await state.clear()
+    await state.set_state(UserStatus.admin)
+    await state.update_data(user_id=data["user_id"])
+
+    # Добавляем пользователя
+    data["chat_id"] = None
+    data["status"] = callback.data.split(":")[1]
+    res = await db.add_user(data)
+    if "успешно" in res:
+        await callback.message.answer("Пользователь добавлен")
+    else:
+        await callback.message.answer(res)
 
 
 @router.message()

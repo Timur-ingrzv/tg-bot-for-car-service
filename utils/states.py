@@ -58,3 +58,11 @@ class Statistic(StatesGroup):
     waiting_start_time = State()
     waiting_end_date = State()
     waiting_end_time = State()
+
+
+class UsersAdmin(StatesGroup):
+    waiting_for_name = State()
+    waiting_for_login = State()
+    waiting_for_password = State()
+    waiting_for_phone_number = State()
+    waiting_for_status = State()

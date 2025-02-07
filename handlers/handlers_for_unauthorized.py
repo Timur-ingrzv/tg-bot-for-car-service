@@ -1,5 +1,3 @@
-import logging
-
 from aiogram import F, Router, types
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
