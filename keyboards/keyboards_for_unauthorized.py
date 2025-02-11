@@ -5,7 +5,8 @@ def get_start_keyboard():
     buttons = [
         [
             types.InlineKeyboardButton(
-                text="Посмотреть доступные услуги", callback_data="services"
+                text="Посмотреть доступные услуги",
+                callback_data="list services",
             )
         ],
         [

@@ -9,7 +9,7 @@ from aiogram_calendar import SimpleCalendarCallback
 from database.methods import db
 from keyboards.keyboards_for_clients import (
     get_interface_change_profile,
-    get_services_to_add_schedule,
+    get_list_services,
 )
 from utils.calendar import get_calendar
 from utils.middlewares import SQLInjectionMiddleware
@@ -179,7 +179,7 @@ async def input_service_name(message: types.Message, state: FSMContext):
         SchedulerClient.waiting_for_service_name_to_add_schedule
     )
     await message.answer(
-        "Выберите услугу", reply_markup=await get_services_to_add_schedule()
+        "Выберите услугу", reply_markup=await get_list_services()
     )
 
 

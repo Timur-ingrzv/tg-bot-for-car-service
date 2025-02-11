@@ -67,7 +67,7 @@ def get_interface_change_profile():
     return keyboard
 
 
-async def get_services_to_add_schedule():
+async def get_list_services():
     services = await db.show_services()
     available_services = [
         (service["service_name"], service["price"]) for service in services

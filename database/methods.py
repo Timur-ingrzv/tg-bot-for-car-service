@@ -609,11 +609,95 @@ class MethodsServices:
         """Показывает доступные услуги"""
         connection = await asyncpg.connect(**self.db_config)
         try:
-            query = Query.from_(self.services_info).select(
-                self.services_info.service_name, self.services_info.price
+            query = (
+                Query.from_(self.services_info)
+                .select(
+                    self.services_info.service_name,
+                    self.services_info.price,
+                    self.services_info.payout_worker,
+                )
+                .orderby(self.services_info.service_name)
             )
             res = await connection.fetch(str(query))
             return res
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка обращения к базе, повторите позже"
+
+        finally:
+            await connection.close()
+
+    async def add_service(
+        self, service_name: str, price: int, payout: int
+    ) -> str:
+        """Добавляет новую услугу"""
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            # проверяем существование услуги
+            query_check = (
+                Query.from_(self.services_info)
+                .select(self.services_info.id)
+                .where(self.services_info.service_name == service_name)
+            )
+            res = await connection.fetch(str(query_check))
+            if res:
+                return "Данная услуга уже существует"
+
+            # Добавляем услугу
+            query = (
+                Query.into(self.services_info)
+                .columns(
+                    self.services_info.service_name,
+                    self.services_info.price,
+                    self.services_info.payout_worker,
+                )
+                .insert(service_name, price, payout)
+            )
+            await connection.execute(str(query))
+            return "Услуга добавлена"
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка обращения к базе, повторите позже"
+
+        finally:
+            await connection.close()
+
+    async def delete_service(self, service_name: str) -> str:
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            query = (
+                Query.from_(self.services_info)
+                .delete()
+                .where(self.services_info.service_name == service_name)
+            )
+            await connection.execute(str(query))
+            return "Услуга удалена"
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка обращения к базе, повторите позже"
+
+        finally:
+            await connection.close()
+
+    async def change_service_info(
+        self, service_name: str, col: str, new_value: int
+    ) -> str:
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            if col == "price":
+                field = self.services_info.price
+            else:
+                field = self.services_info.payout_worker
+            query = (
+                Query.update(self.services_info)
+                .set(field, new_value)
+                .where(self.services_info.service_name == service_name)
+            )
+            await connection.execute(str(query))
+            return "Данные изменены"
 
         except Exception as e:
             logging.error(e)
@@ -646,6 +730,10 @@ class MethodsWorkers:
                 return None
             else:
                 return worker_id["id"]
+
+        except Exception as e:
+            logging.error(e)
+            return None
 
         finally:
             await connection.close()

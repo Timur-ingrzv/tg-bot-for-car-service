@@ -17,8 +17,10 @@ from keyboards.keyboards_for_administration import (
     get_interface_manage_schedule,
     get_interface_for_admin,
     get_status,
+    get_interface_manage_services,
+    get_service_col_to_change,
 )
-from keyboards.keyboards_for_clients import get_services_to_add_schedule
+from keyboards.keyboards_for_clients import get_list_services
 from utils.calendar import get_calendar
 from utils.middlewares import SQLInjectionMiddleware
 from utils.states import (
@@ -27,6 +29,7 @@ from utils.states import (
     WorkingTime,
     Statistic,
     UsersAdmin,
+    Services,
 )
 
 router = Router()
@@ -34,23 +37,30 @@ router.message.middleware(SQLInjectionMiddleware())
 
 
 @router.callback_query(F.data == "users")
-async def show_managment_of_clients(callback: types.CallbackQuery):
+async def show_managment_of_users(callback: types.CallbackQuery):
     await callback.message.answer(
         "Управление пользователями", reply_markup=get_interface_manage_users()
     )
 
 
 @router.callback_query(F.data == "workers")
-async def show_managment_of_clients(callback: types.CallbackQuery):
+async def show_managment_of_workers(callback: types.CallbackQuery):
     await callback.message.answer(
         "Управление сотрудниками", reply_markup=get_interface_manage_workers()
     )
 
 
 @router.callback_query(F.data == "schedule")
-async def show_managment_of_clients(callback: types.CallbackQuery):
+async def show_managment_of_schedule(callback: types.CallbackQuery):
     await callback.message.answer(
         "Управление расписанием", reply_markup=get_interface_manage_schedule()
+    )
+
+
+@router.callback_query(F.data == "services")
+async def show_managment_of_services(callback: types.CallbackQuery):
+    await callback.message.answer(
+        "Управление услугами", reply_markup=get_interface_manage_services()
     )
 
 
@@ -80,7 +90,7 @@ async def input_service_name(message: types.Message, state: FSMContext):
     await state.set_state(SchedulerAdmin.waiting_for_service_to_add)
     await state.update_data(worker_name=message.text.strip())
     await message.answer(
-        "Выберите услугу:", reply_markup=await get_services_to_add_schedule()
+        "Выберите услугу:", reply_markup=await get_list_services()
     )
 
 
@@ -679,6 +689,170 @@ async def show_info(message: types.CallbackQuery, state: FSMContext):
         f"<b>Статус:</b> {status}\n"
         f"<b>Номер телефона:</b> {res["phone_number"]}\n",
         parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data == "list services admin")
+async def show_services_admin(callback: types.CallbackQuery):
+    services = await db.show_services()
+    all_services = "Название - цена / выплата сотруднику в руб.\n"
+    for service in services:
+        all_services += (
+            f"• <b>{service['service_name']}</b> - "
+            f"{service['price']} / "
+            f"{service['payout_worker']}\n"
+        )
+    await callback.message.answer(all_services, parse_mode="HTML")
+
+
+@router.callback_query(F.data == "add service")
+async def input_service_name_to_add(
+    callback: types.CallbackQuery, state: FSMContext
+):
+    await state.set_state(Services.waiting_for_service_name_to_add)
+    await callback.message.answer("Введите название услуги")
+
+
+@router.message(StateFilter(Services.waiting_for_service_name_to_add))
+async def input_price_to_add(message: types.Message, state: FSMContext):
+    await state.set_state(Services.waiting_for_price_to_add)
+    service_name = message.text.strip()
+    await state.update_data(service_name=service_name)
+    await message.answer("Введите цену услуги в руб.")
+
+
+@router.message(StateFilter(Services.waiting_for_price_to_add))
+async def input_payout(message: types.Message, state: FSMContext):
+    try:
+        price = int(message.text.strip())
+    except Exception:
+        await state.set_state(UserStatus.admin)
+        await message.answer(
+            "Неправильный формат цены, должно быть целое число"
+        )
+        return
+    await state.update_data(price=price)
+    await state.set_state(Services.waiting_for_payout_to_add)
+    await message.answer("Введите выплату сотруднику в руб.")
+
+
+@router.message(StateFilter(Services.waiting_for_payout_to_add))
+async def add_service(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    await state.clear()
+    await state.set_state(UserStatus.admin)
+    await state.update_data(user_id=data["user_id"])
+    await state.update_data(status=data["status"])
+    try:
+        payout = int(message.text.strip())
+    except Exception:
+        await message.answer(
+            "Неправильный формат выплаты, должно быть целое число"
+        )
+        return
+    res = await db.add_service(data["service_name"], data["price"], payout)
+    await message.answer(res)
+
+
+@router.callback_query(F.data == "change serv price")
+async def choose_service_change(
+    callback: types.CallbackQuery, state: FSMContext
+):
+    await state.set_state(Services.waiting_for_service_name_to_change)
+    await callback.message.answer(
+        "Выберите услугу для изменения", reply_markup=await get_list_services()
+    )
+
+
+@router.callback_query(
+    StateFilter(Services.waiting_for_service_name_to_change),
+    F.data.startswith("choose-service_"),
+)
+async def choose_service_col_change(
+    callback: types.CallbackQuery, state: FSMContext
+):
+    service_name = callback.data.split("_", maxsplit=1)[1]
+    await state.set_state(Services.waiting_for_service_col_to_change)
+    await state.update_data(service_name=service_name)
+
+    from bot import bot
+
+    await bot.edit_message_text(
+        chat_id=callback.message.chat.id,
+        message_id=callback.message.message_id,
+        text=f"Вы выбрали услугу: {service_name}",
+        reply_markup=None,
+    )
+    await callback.message.answer(
+        "Выберите поле для изменения", reply_markup=get_service_col_to_change()
+    )
+
+
+@router.callback_query(
+    StateFilter(Services.waiting_for_service_col_to_change),
+    F.data.startswith("service-col:"),
+)
+async def input_new_value(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(Services.waiting_for_new_value_to_change)
+    col = callback.data.split(":", maxsplit=1)[1]
+    await state.update_data(col=col)
+    field = "Цена" if col == "price" else "Выплата сотруднику"
+    from bot import bot
+
+    await bot.edit_message_text(
+        chat_id=callback.message.chat.id,
+        message_id=callback.message.message_id,
+        text=f"Вы выбрали поле: {field}",
+        reply_markup=None,
+    )
+    await callback.message.answer("Введите новое значение в руб.")
+
+
+@router.message(StateFilter(Services.waiting_for_new_value_to_change))
+async def change_service(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    await state.clear()
+    await state.set_state(UserStatus.admin)
+    await state.update_data(user_id=data["user_id"])
+    await state.update_data(status=data["status"])
+
+    try:
+        new_value = int(message.text.strip())
+    except Exception:
+        await message.answer(
+            "Неправильный формат нового значения, должно быть целое число"
+        )
+        return
+    res = await db.change_service_info(
+        data["service_name"], data["col"], new_value
+    )
+    await message.answer(res)
+
+
+@router.callback_query(F.data == "delete service")
+async def choose_service_delete(
+    callback: types.CallbackQuery, state: FSMContext
+):
+    await state.set_state(Services.waiting_for_service_name_to_delete)
+    await callback.message.answer(
+        "Выберите услугу для удаления", reply_markup=await get_list_services()
+    )
+
+
+@router.callback_query(
+    StateFilter(Services.waiting_for_service_name_to_delete),
+    F.data.startswith("choose-service_"),
+)
+async def delete_service(callback: types.CallbackQuery, state: FSMContext):
+    service_name = callback.data.split("_", maxsplit=1)[1]
+    res = await db.delete_service(service_name)
+    from bot import bot
+
+    await bot.edit_message_text(
+        chat_id=callback.message.chat.id,
+        message_id=callback.message.message_id,
+        text=f"{service_name}: {res}",
+        reply_markup=None,
     )
 
 

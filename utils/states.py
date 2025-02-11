@@ -69,3 +69,15 @@ class UsersAdmin(StatesGroup):
 
     waiting_for_name_to_delete = State()
     waiting_for_name_to_show_info = State()
+
+
+class Services(StatesGroup):
+    waiting_for_service_name_to_add = State()
+    waiting_for_price_to_add = State()
+    waiting_for_payout_to_add = State()
+
+    waiting_for_service_name_to_delete = State()
+
+    waiting_for_service_name_to_change = State()
+    waiting_for_service_col_to_change = State()
+    waiting_for_new_value_to_change = State()

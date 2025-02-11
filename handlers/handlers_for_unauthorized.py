@@ -15,7 +15,7 @@ router.message.middleware.register(MessageLengthMiddleware())
 router.message.middleware(SQLInjectionMiddleware())
 
 
-@router.callback_query(F.data == "services")
+@router.callback_query(F.data == "list services")
 async def print_services(callback: types.CallbackQuery):
     res = await db.show_services()
     if isinstance(res, str):

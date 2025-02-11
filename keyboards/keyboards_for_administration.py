@@ -18,6 +18,7 @@ def get_interface_for_admin():
                 text="Расписание", callback_data="schedule"
             )
         ],
+        [types.InlineKeyboardButton(text="Услуги", callback_data="services")],
         [
             types.InlineKeyboardButton(
                 text="Статистика", callback_data="statistic"
@@ -134,6 +135,39 @@ def get_interface_manage_workers():
     return keyboard
 
 
+def get_interface_manage_services():
+    buttons = [
+        [
+            types.InlineKeyboardButton(
+                text="Доступные услуги", callback_data="list services admin"
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="Добавить услугу", callback_data="add service"
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="Изменить цену услуги", callback_data="change serv price"
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="Удалить услугу", callback_data="delete service"
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="Назад",
+                callback_data="back admin",
+            )
+        ],
+    ]
+    keyboard = types.InlineKeyboardMarkup(inline_keyboard=buttons)
+    return keyboard
+
+
 def get_day_week():
     buttons = [
         [
@@ -188,6 +222,24 @@ def get_status():
         [
             types.InlineKeyboardButton(
                 text="Администратор", callback_data="chosen_status:admin"
+            )
+        ],
+    ]
+    keyboard = types.InlineKeyboardMarkup(inline_keyboard=buttons)
+    return keyboard
+
+
+def get_service_col_to_change():
+    buttons = [
+        [
+            types.InlineKeyboardButton(
+                text="Цена услуги", callback_data="service-col:price"
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="Выплата сотруднику",
+                callback_data="service-col:payout_worker",
             )
         ],
     ]
