@@ -51,13 +51,16 @@ async def cmd_start(message: Message, bot: Bot, state: FSMContext):
 
 @dp.message(Command("help"))
 async def helper(message: Message, state: FSMContext, bot: Bot):
-    cur_state = await state.get_state()
-    if cur_state == UserStatus.admin.state:
+    data = await state.get_data()
+    cur_state = "unauthorized"
+    if "status" in data.keys():
+        cur_state = data["status"]
+    if cur_state == "admin":
         await message.answer(
             "Доступные опции для администрации",
             reply_markup=get_interface_for_admin(),
         )
-    elif cur_state == UserStatus.client.state:
+    elif cur_state == "client":
         await message.answer(
             "Доступные опции для клиента",
             reply_markup=get_interface_for_client(),

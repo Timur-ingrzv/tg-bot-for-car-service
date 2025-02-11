@@ -238,6 +238,7 @@ class MethodsSchedule:
         self.working_time = Table("working_time")
 
     async def find_free_slots(self, date: datetime.datetime) -> List:
+        """Генерирует список свободных слотов в определенный день"""
         connection = await asyncpg.connect(**self.db_config)
         try:
             # ищем всех работников, работающих в этот день
@@ -256,7 +257,7 @@ class MethodsSchedule:
 
             free_slots = set()
             for worker in workers:
-                # создает диапозон промежутков свободных слотов
+                # создает диапазон промежутков свободных слотов
                 start_time = datetime.datetime.combine(
                     date, worker["time_start"]
                 )
@@ -535,6 +536,7 @@ class MethodsSchedule:
             await connection.close()
 
     async def get_statistic(self, start_date, end_date):
+        """Сбор статистики записей в диапазоне"""
         connection = await asyncpg.connect(**self.db_config)
         try:
             query_payouts = (
@@ -564,6 +566,7 @@ class MethodsSchedule:
             await connection.close()
 
     async def find_service_for_notification(self, delay):
+        """Ищем записи, подходящие под уведомление пользователя(за 2 часа += 7.5 минут)"""
         connection = await asyncpg.connect(**self.db_config)
         try:
             cur_time = datetime.datetime.now() + datetime.timedelta(hours=2)
@@ -665,6 +668,7 @@ class MethodsServices:
             await connection.close()
 
     async def delete_service(self, service_name: str) -> str:
+        """Удаляет услугу"""
         connection = await asyncpg.connect(**self.db_config)
         try:
             query = (
@@ -685,12 +689,31 @@ class MethodsServices:
     async def change_service_info(
         self, service_name: str, col: str, new_value: int
     ) -> str:
+        """Меняет цену или выплату услуги"""
         connection = await asyncpg.connect(**self.db_config)
         try:
+            # проверка корректности цены и выплаты
+            query_check = (
+                Query.from_(self.services_info)
+                .select(
+                    self.services_info.price, self.services_info.payout_worker
+                )
+                .where(self.services_info.service_name == service_name)
+            )
+            service = await connection.fetchrow(str(query_check))
+
             if col == "price":
                 field = self.services_info.price
+                if service["payout_worker"] > new_value:
+                    return (
+                        "Выплата сотруднику не может быть больше цены услуги"
+                    )
             else:
                 field = self.services_info.payout_worker
+                if service["price"] < new_value:
+                    return (
+                        "Выплата сотруднику не может быть больше цены услуги"
+                    )
             query = (
                 Query.update(self.services_info)
                 .set(field, new_value)
@@ -925,26 +948,5 @@ class Database(MethodsUsers, MethodsSchedule, MethodsServices, MethodsWorkers):
 
 
 db = Database(DATABASE_CONFIG)
-info = {
-    "name": "test_name",
-    "login": "test_login",
-    "password": "test_password",
-    "status": "client",
-    "phone_number": "9894",
-    "chat_id": "123",
-}
-date1 = datetime.datetime.strptime("22-01-2025 17", "%d-%m-%Y %H")
-date2 = datetime.datetime.strptime("01-02-2025", "%d-%m-%Y")
-
-info = {
-    "date": datetime.datetime.now(),
-    "client_name": "test_client1",
-    "worker_name": "test_worker",
-    "service_name": "Диагностика",
-}
-start = datetime.datetime.strptime("2025-02-04 18:52", "%Y-%m-%d %H:%M")
-
-end = datetime.datetime.strptime("2026-04-05", "%Y-%m-%d")
-
 # res = asyncio.run(db.show_user_info("test_client1"))
 # print(res)

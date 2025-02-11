@@ -750,6 +750,11 @@ async def add_service(message: types.Message, state: FSMContext):
             "Неправильный формат выплаты, должно быть целое число"
         )
         return
+    if data["price"] < payout:
+        await message.answer(
+            "Выплата сотруднику не может быть больше цены услуги"
+        )
+        return
     res = await db.add_service(data["service_name"], data["price"], payout)
     await message.answer(res)
 
@@ -846,6 +851,7 @@ async def choose_service_delete(
 async def delete_service(callback: types.CallbackQuery, state: FSMContext):
     service_name = callback.data.split("_", maxsplit=1)[1]
     res = await db.delete_service(service_name)
+    await state.set_state(UserStatus.admin)
     from bot import bot
 
     await bot.edit_message_text(
