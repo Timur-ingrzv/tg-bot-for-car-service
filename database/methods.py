@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 import asyncpg
 from pypika import Table, Query, functions as fn
 
-from config import DATABASE_CONFIG
+from config import DATABASE_CONFIG, hasher
 
 
 class MethodsUsers:
@@ -49,14 +49,21 @@ class MethodsUsers:
         try:
             query = (
                 Query.from_(self.users)
-                .select(self.users.id, self.users.name, self.users.status)
-                .where(
-                    (self.users.login == login)
-                    & (self.users.password == password)
+                .select(
+                    self.users.id,
+                    self.users.name,
+                    self.users.password,
+                    self.users.status
                 )
+                .where(self.users.login == login)
             )
-            res = await connection.fetchrow(str(query))
-            return res
+            users = await connection.fetch(str(query))
+            password = password.encode("UTF-8")
+            for user in users:
+                unhashed_password = hasher.decrypt(user["password"])
+                if password == unhashed_password:
+                    return user
+            return None
 
         except Exception as e:
             logging.error(e)
