@@ -116,7 +116,7 @@ class MethodsUsers:
             user = await self.find_user(info["login"], info["password"])
             if user and user["name"]:
                 return "Такой пользователь уже существует"
-
+            info["password"] = hasher.encrypt(info["password"].encode("UTF-8")).decode("UTF-8")
             query = (
                 Query.into(self.users)
                 .columns(
@@ -157,6 +157,7 @@ class MethodsUsers:
                 field = self.users.login
             if changed_field == "password":
                 field = self.users.password
+                new_value = hasher.encrypt(new_value.encode("UTF-8")).decode("UTF-8")
             if changed_field == "phone_number":
                 field = self.users.phone_number
 
@@ -225,6 +226,9 @@ class MethodsUsers:
                 .where(self.users.name == name)
             )
             res = await connection.fetchrow(str(query))
+            res = dict(res)
+            if res:
+                res["password"] = hasher.decrypt(res["password"]).decode("UTF-8")
             return res
 
         except Exception as e:
@@ -955,5 +959,5 @@ class Database(MethodsUsers, MethodsSchedule, MethodsServices, MethodsWorkers):
 
 
 db = Database(DATABASE_CONFIG)
-# res = asyncio.run(db.show_user_info("test_client1"))
+# res = asyncio.run(db.show_user_info("test_add_user"))
 # print(res)

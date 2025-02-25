@@ -589,14 +589,23 @@ async def input_name(callback: types.CallbackQuery, state: FSMContext):
 
 @router.message(StateFilter(UsersAdmin.waiting_for_name))
 async def input_login(message: types.Message, state: FSMContext):
-    await state.update_data(name=message.text.strip())
+    name = message.text.strip()
+    if await db.check_existing(name=name):
+        await message.answer("Данное имя занято, попробуйте другое")
+        return
+    await state.update_data(name=name)
     await state.set_state(UsersAdmin.waiting_for_login)
     await message.answer("Введите логин")
 
 
 @router.message(StateFilter(UsersAdmin.waiting_for_login))
 async def input_password(message: types.Message, state: FSMContext):
-    await state.update_data(login=message.text.strip())
+    login = message.text.strip()
+    if await db.check_existing(login=login):
+        await message.answer("Данный логин занят, попробуйте другой")
+        await state.set_state(UserStatus.admin)
+        return
+    await state.update_data(login=login)
     await state.set_state(UsersAdmin.waiting_for_password)
     await message.answer("Введите пароль")
 
@@ -611,12 +620,6 @@ async def input_phone_number(message: types.Message, state: FSMContext):
 @router.message(StateFilter(UsersAdmin.waiting_for_phone_number))
 async def input_status(message: types.Message, state: FSMContext):
     phone_number = message.text.strip()
-    if len(phone_number.strip()) != 11:
-        await state.set_state(UserStatus.admin)
-        await message.answer(
-            "Неправильный номер телефона, должно быть 11 символов"
-        )
-        return
     await state.set_state(UsersAdmin.waiting_for_status)
     await state.update_data(phone_number=phone_number)
     await message.answer(
@@ -677,6 +680,9 @@ async def show_info(message: types.CallbackQuery, state: FSMContext):
     if not res:
         await message.answer("Пользователя с таким именем не существует")
         return
+    if isinstance(res, str):
+        await message.answer(res)
+        return
 
     password = "Скрыт"
     if res["id"] == user_id or res["status"] == "client":
@@ -684,10 +690,10 @@ async def show_info(message: types.CallbackQuery, state: FSMContext):
     status = "Клиент" if res["status"] == "client" else "Администратор"
     await message.answer(
         f"<b>Имя:</b> {name}\n"
-        f"<b>Логин:</b> {res["login"]}\n"
+        f"<b>Логин:</b> {res['login']}\n"
         f"<b>Пароль:</b> {password}\n"
         f"<b>Статус:</b> {status}\n"
-        f"<b>Номер телефона:</b> {res["phone_number"]}\n",
+        f"<b>Номер телефона:</b> {res['phone_number']}\n",
         parse_mode="HTML",
     )
 
