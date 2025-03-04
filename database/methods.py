@@ -53,7 +53,7 @@ class MethodsUsers:
                     self.users.id,
                     self.users.name,
                     self.users.password,
-                    self.users.status
+                    self.users.status,
                 )
                 .where(self.users.login == login)
             )
@@ -116,7 +116,9 @@ class MethodsUsers:
             user = await self.find_user(info["login"], info["password"])
             if user and user["name"]:
                 return "Такой пользователь уже существует"
-            info["password"] = hasher.encrypt(info["password"].encode("UTF-8")).decode("UTF-8")
+            info["password"] = hasher.encrypt(
+                info["password"].encode("UTF-8")
+            ).decode("UTF-8")
             query = (
                 Query.into(self.users)
                 .columns(
@@ -157,7 +159,9 @@ class MethodsUsers:
                 field = self.users.login
             if changed_field == "password":
                 field = self.users.password
-                new_value = hasher.encrypt(new_value.encode("UTF-8")).decode("UTF-8")
+                new_value = hasher.encrypt(new_value.encode("UTF-8")).decode(
+                    "UTF-8"
+                )
             if changed_field == "phone_number":
                 field = self.users.phone_number
 
@@ -228,7 +232,9 @@ class MethodsUsers:
             res = await connection.fetchrow(str(query))
             res = dict(res)
             if res:
-                res["password"] = hasher.decrypt(res["password"]).decode("UTF-8")
+                res["password"] = hasher.decrypt(res["password"]).decode(
+                    "UTF-8"
+                )
             return res
 
         except Exception as e:
@@ -396,6 +402,8 @@ class MethodsSchedule:
                 .where(cur_date < self.schedule.date)
             )
             res = await connection.fetch(str(query))
+            if not res:
+                res = "У вас нет запланированных записей"
             return res
 
         except Exception as e:
@@ -514,7 +522,7 @@ class MethodsSchedule:
             await connection.close()
 
     async def delete_schedule(self, name, date) -> str:
-        """Удаляет запись клиента"""
+        """Удаляет запись клиента (Функция администратора)"""
         connection = await asyncpg.connect(**self.db_config)
         try:
             find_query = (
@@ -530,6 +538,37 @@ class MethodsSchedule:
             record = await connection.fetchrow(str(find_query))
             if not record:
                 return f"Записи в данное время для {name} не существует"
+
+            query = (
+                Query.from_(self.schedule)
+                .delete()
+                .where(self.schedule.id == record["id"])
+            )
+            await connection.execute(str(query))
+            return "Запись успешно удалена"
+
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка обращения к базе, повторите позже"
+
+        finally:
+            await connection.close()
+
+    async def delete_schedule_client(self, id: int, date) -> str:
+        """Удаляет запись клиента (Функция клиента)"""
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            find_query = (
+                Query.from_(self.schedule)
+                .select(self.schedule.id)
+                .where(
+                    (self.schedule.client_id == id)
+                    & (self.schedule.date == date)
+                )
+            )
+            record = await connection.fetchrow(str(find_query))
+            if not record:
+                return f"У вас нет записи на данное время"
 
             query = (
                 Query.from_(self.schedule)
@@ -959,5 +998,5 @@ class Database(MethodsUsers, MethodsSchedule, MethodsServices, MethodsWorkers):
 
 
 db = Database(DATABASE_CONFIG)
-# res = asyncio.run(db.show_user_info("test_add_user"))
-# print(res)
+res = asyncio.run(db.show_user_info("test_add_user"))
+print(res)

@@ -116,6 +116,68 @@ async def show_schedule(
         await callback.message.answer(ans)
 
 
+@router.callback_query(F.data == "delete record for client")
+async def input_date_to_delete_schedule(
+    callback: types.CallbackQuery, state: FSMContext
+):
+    await state.set_state(SchedulerClient.waiting_for_date_to_delete_schedule)
+    calendar, cur_time = await get_calendar(callback.from_user)
+    await callback.message.answer(
+        "Выберите дату для удаления записи",
+        reply_markup=await calendar.start_calendar(
+            year=cur_time.year, month=cur_time.month
+        ),
+    )
+
+
+@router.callback_query(
+    StateFilter(SchedulerClient.waiting_for_date_to_delete_schedule),
+    SimpleCalendarCallback.filter(),
+)
+async def input_time_to_delete_schedule(
+    callback: types.CallbackQuery,
+    state: FSMContext,
+    callback_data: CallbackData,
+):
+    calendar, cur_time = await get_calendar(callback.from_user)
+    selected, date = await calendar.process_selection(callback, callback_data)
+    if selected:
+        await state.set_state(
+            SchedulerClient.waiting_for_time_to_delete_schedule
+        )
+        await state.update_data(date=date)
+        await callback.message.answer(
+            "Введите время записи для удаления - час дня"
+        )
+
+
+@router.message(
+    StateFilter(SchedulerClient.waiting_for_time_to_delete_schedule)
+)
+async def delete_schedule_client(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    await state.clear()
+    await state.set_state(UserStatus.client)
+    await state.update_data(user_id=data["user_id"])
+    await state.update_data(status=data["status"])
+    try:
+        valid_time = int(message.text.strip())
+        if not (0 <= valid_time < 24):
+            await state.set_state(UserStatus.client)
+            await message.answer(
+                "Время должно быть целое число в диапазоне от 0 до 23"
+            )
+            return
+        valid_date = datetime.combine(data["date"], time(hour=valid_time))
+        res = await db.delete_schedule_client(data["user_id"], valid_date)
+        await message.answer(res)
+
+    except Exception:
+        await message.answer(
+            "Неправильный формат времени - введите число от 0 до 23"
+        )
+
+
 @router.callback_query(F.data == "sign up for service")
 async def input_date_to_add_schedule(
     callback: types.CallbackQuery, state: FSMContext

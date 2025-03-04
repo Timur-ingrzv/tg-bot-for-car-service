@@ -31,6 +31,11 @@ def get_interface_for_client():
         ],
         [
             types.InlineKeyboardButton(
+                text="Удалить запись", callback_data="delete record for client"
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
                 text="Выйти из профиля", callback_data="exit profile"
             )
         ],
