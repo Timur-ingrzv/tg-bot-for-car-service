@@ -22,7 +22,7 @@ router.message.middleware(SQLInjectionMiddleware())
 @router.callback_query(F.data == "exit profile")
 async def exit_profile(callback: types.CallbackQuery, state: FSMContext):
     await state.clear()
-    from bot import cmd_start, bot
+    from main import cmd_start, bot
 
     await cmd_start(callback.message, bot, state)
 
@@ -40,7 +40,7 @@ async def input_new_value(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(
         changed_field=callback.data.split("_", maxsplit=1)[1]
     )
-    from bot import bot
+    from main import bot
 
     await bot.edit_message_text(
         chat_id=callback.message.chat.id,
@@ -256,7 +256,7 @@ async def add_schedule(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(status=data["status"])
 
     service_name = callback.data.split("_", maxsplit=1)[1]
-    from bot import bot
+    from main import bot
 
     await bot.edit_message_text(
         chat_id=callback.message.chat.id,

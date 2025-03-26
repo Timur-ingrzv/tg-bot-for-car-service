@@ -18,7 +18,7 @@ async def notifications():
             f"<b>Дата:</b> {note['date'].strftime('%d-%m-%Y %H:%M')}\n"
         )
         try:
-            from bot import bot
+            from main import bot
 
             await bot.send_message(note["chat_id"], ans, parse_mode="HTML")
         except Exception as e:

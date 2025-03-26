@@ -104,7 +104,7 @@ async def input_date_to_add(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(service_name=service_name)
     calendar, cur_time = await get_calendar(callback.from_user)
 
-    from bot import bot
+    from main import bot
 
     await bot.edit_message_text(
         chat_id=callback.message.chat.id,
@@ -570,7 +570,7 @@ async def send_new_page(callback: types.CallbackQuery):
     page = int(callback.data.split(":")[1])
     users = await db.find_all_users(page)
     end = True if len(users) < 10 else False
-    from bot import bot
+    from main import bot
 
     await bot.edit_message_text(
         chat_id=callback.message.chat.id,
@@ -786,7 +786,7 @@ async def choose_service_col_change(
     await state.set_state(Services.waiting_for_service_col_to_change)
     await state.update_data(service_name=service_name)
 
-    from bot import bot
+    from main import bot
 
     await bot.edit_message_text(
         chat_id=callback.message.chat.id,
@@ -808,7 +808,7 @@ async def input_new_value(callback: types.CallbackQuery, state: FSMContext):
     col = callback.data.split(":", maxsplit=1)[1]
     await state.update_data(col=col)
     field = "Цена" if col == "price" else "Выплата сотруднику"
-    from bot import bot
+    from main import bot
 
     await bot.edit_message_text(
         chat_id=callback.message.chat.id,
@@ -858,7 +858,7 @@ async def delete_service(callback: types.CallbackQuery, state: FSMContext):
     service_name = callback.data.split("_", maxsplit=1)[1]
     res = await db.delete_service(service_name)
     await state.set_state(UserStatus.admin)
-    from bot import bot
+    from main import bot
 
     await bot.edit_message_text(
         chat_id=callback.message.chat.id,
