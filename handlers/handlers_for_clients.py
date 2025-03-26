@@ -225,7 +225,7 @@ async def input_service_name(message: types.Message, state: FSMContext):
         data = await state.get_data()
         valid_date = datetime.combine(data["date"], time(hour=valid_time))
         if valid_date < datetime.now():
-            await message.answer("Выберите время позже текщуего")
+            await message.answer("Выберите время позже текущего")
             await state.set_state(UserStatus.client)
             return
         await state.update_data(date=valid_date)
