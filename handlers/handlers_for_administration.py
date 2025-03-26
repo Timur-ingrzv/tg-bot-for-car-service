@@ -219,7 +219,7 @@ async def delete_scheduler(message: types.Message, state: FSMContext):
     try:
         valid_time = int(message.text.strip())
         if not (0 <= valid_time < 24):
-            await state.set_state(UserStatus.client)
+            await state.set_state(UserStatus.admin)
             await message.answer(
                 "Время должно быть целое число в диапазоне от 0 до 23"
             )

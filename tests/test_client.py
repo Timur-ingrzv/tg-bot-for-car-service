@@ -15,10 +15,11 @@ from handlers.handlers_for_clients import (
     input_service_name,
     add_schedule,
     input_date_for_scheduler,
-    show_schedule
+    show_schedule,
 )
 from utils.states import SchedulerClient, UserStatus
 from handlers.handlers_for_clients import SimpleCalendarCallback
+
 
 @pytest.fixture
 def user():
@@ -28,6 +29,7 @@ def user():
 @pytest.fixture
 def chat():
     return Chat(id=456, type="private")
+
 
 @pytest.fixture
 def fsm_context():
@@ -44,8 +46,9 @@ def message(user, chat):
             chat=chat,
             from_user=user,
             date=datetime.now(),
-            text=text
+            text=text,
         )
+
     return _message
 
 
@@ -66,20 +69,26 @@ def callback_query():
                 message_id=1,
                 chat=Chat.model_construct(id=456, type="private"),
                 date=datetime.now(),
-                text="some text"
+                text="some text",
             ),
             chat_instance="ci",
-            data=data
+            data=data,
         )
+
     return _factory
 
 
-'''Тестирование записи на услугу'''
+"""Тестирование записи на услугу"""
+
+
 @pytest.mark.asyncio
 async def test_input_date_to_add_schedule(callback_query, fsm_context):
     now = datetime.now() + timedelta(days=1)
-    with patch("utils.calendar.get_calendar", new_callable=AsyncMock) as mock_calendar, \
-            patch.object(Message, "answer", new_callable=AsyncMock) as mock_answer:
+    with patch(
+        "utils.calendar.get_calendar", new_callable=AsyncMock
+    ) as mock_calendar, patch.object(
+        Message, "answer", new_callable=AsyncMock
+    ) as mock_answer:
         mock_calendar.return_value = (AsyncMock(), now)
 
         callback = callback_query("sign up for service")
@@ -99,15 +108,26 @@ async def test_input_date_to_add_schedule(callback_query, fsm_context):
 async def test_input_time_to_add_schedule(callback_query, fsm_context):
     calendar_mock = AsyncMock()
     now = datetime.now() + timedelta(days=1)
-    calendar_mock.process_selection.return_value = (True, date.today() + timedelta(days=1))
-    with patch("utils.calendar.get_calendar", new_callable=AsyncMock) as mock_calendar, \
-            patch.object(Message, "answer", new_callable=AsyncMock) as mock_msg_answer, \
-            patch.object(Message, "delete_reply_markup", new_callable=AsyncMock) as mock_delete_markup:
+    calendar_mock.process_selection.return_value = (
+        True,
+        date.today() + timedelta(days=1),
+    )
+    with patch(
+        "utils.calendar.get_calendar", new_callable=AsyncMock
+    ) as mock_calendar, patch.object(
+        Message, "answer", new_callable=AsyncMock
+    ) as mock_msg_answer, patch.object(
+        Message, "delete_reply_markup", new_callable=AsyncMock
+    ) as mock_delete_markup:
         mock_calendar.return_value = (calendar_mock, date.today())
-        callback_data = SimpleCalendarCallback(act="DAY", year=now.year, month=now.month, day=now.day)
+        callback_data = SimpleCalendarCallback(
+            act="DAY", year=now.year, month=now.month, day=now.day
+        )
         callback = callback_query(callback_data.pack())
 
-        await fsm_context.set_state(SchedulerClient.waiting_for_date_to_add_schedule)
+        await fsm_context.set_state(
+            SchedulerClient.waiting_for_date_to_add_schedule
+        )
 
         await input_time_to_add_schedule(callback, fsm_context, callback_data)
 
@@ -122,52 +142,76 @@ async def test_input_time_to_add_schedule(callback_query, fsm_context):
 @pytest.mark.asyncio
 async def test_input_service_name_valid_time(message, fsm_context):
     valid_hour = datetime.now().hour + 1
-    await fsm_context.set_state(SchedulerClient.waiting_for_time_to_add_schedule)
+    await fsm_context.set_state(
+        SchedulerClient.waiting_for_time_to_add_schedule
+    )
     await fsm_context.update_data(date=date.today())
 
     msg = message(str(valid_hour))
 
-    with patch("keyboards.keyboards_for_clients.get_list_services", new_callable=AsyncMock) as mock_services, \
-            patch.object(Message, "answer", new_callable=AsyncMock) as mock_msg_answer:
+    with patch(
+        "keyboards.keyboards_for_clients.get_list_services",
+        new_callable=AsyncMock,
+    ) as mock_services, patch.object(
+        Message, "answer", new_callable=AsyncMock
+    ) as mock_msg_answer:
         mock_services.return_value = AsyncMock()
 
         await input_service_name(msg, fsm_context)
 
         fsm_state = await fsm_context.get_state()
-        assert fsm_state == SchedulerClient.waiting_for_service_name_to_add_schedule
+        assert (
+            fsm_state
+            == SchedulerClient.waiting_for_service_name_to_add_schedule
+        )
         args, kwargs = mock_msg_answer.await_args
         assert args[0] == "Выберите услугу"
 
 
 @pytest.mark.asyncio
 async def test_input_service_name_invalid_time(message, fsm_context):
-    await fsm_context.set_state(SchedulerClient.waiting_for_time_to_add_schedule)
+    await fsm_context.set_state(
+        SchedulerClient.waiting_for_time_to_add_schedule
+    )
     await fsm_context.update_data(date=date.today())
 
-    msg = message('abc')
+    msg = message("abc")
 
-    with patch("keyboards.keyboards_for_clients.get_list_services", new_callable=AsyncMock) as mock_services, \
-            patch.object(Message, "answer", new_callable=AsyncMock) as mock_msg_answer:
+    with patch(
+        "keyboards.keyboards_for_clients.get_list_services",
+        new_callable=AsyncMock,
+    ) as mock_services, patch.object(
+        Message, "answer", new_callable=AsyncMock
+    ) as mock_msg_answer:
         mock_services.return_value = AsyncMock()
 
         await input_service_name(msg, fsm_context)
 
-        fsm_state = await fsm_context.get_state()
         args, kwargs = mock_msg_answer.await_args
-        assert args[0] == "Неправильный формат времени - введите число от 0 до 23"
+        assert (
+            args[0] == "Неправильный формат времени - введите число от 0 до 23"
+        )
 
 
 @pytest.mark.asyncio
 async def test_add_schedule(callback_query, fsm_context):
-    await fsm_context.set_state(SchedulerClient.waiting_for_service_name_to_add_schedule)
+    await fsm_context.set_state(
+        SchedulerClient.waiting_for_service_name_to_add_schedule
+    )
     test_datetime = datetime.now() + timedelta(days=1)
-    await fsm_context.update_data(date=test_datetime, user_id=123, status="active")
+    await fsm_context.update_data(
+        date=test_datetime, user_id=123, status="active"
+    )
 
     callback = callback_query("choose-service_Шиномонтаж")
 
-    with patch("database.methods.db.add_schedule", new_callable=AsyncMock) as mock_add_schedule, \
-            patch("bot.bot.edit_message_text", new_callable=AsyncMock) as mock_edit, \
-            patch.object(Message, "answer", new_callable=AsyncMock) as mock_cb_answer:
+    with patch(
+        "database.methods.db.add_schedule", new_callable=AsyncMock
+    ) as mock_add_schedule, patch(
+        "bot.bot.edit_message_text", new_callable=AsyncMock
+    ) as mock_edit, patch.object(
+        Message, "answer", new_callable=AsyncMock
+    ) as mock_cb_answer:
         mock_add_schedule.return_value = "Расписание добавлено"
 
         await add_schedule(callback, fsm_context)
@@ -190,11 +234,16 @@ async def test_add_schedule(callback_query, fsm_context):
         assert data["status"] == "active"
 
 
-'''Тестирование просмотра расписания'''
+"""Тестирование просмотра расписания"""
+
+
 @pytest.mark.asyncio
 async def test_input_date_for_scheduler(callback_query, fsm_context):
-    with patch("utils.calendar.get_calendar", new_callable=AsyncMock) as mock_calendar, \
-         patch.object(Message, "answer", new_callable=AsyncMock):
+    with patch(
+        "utils.calendar.get_calendar", new_callable=AsyncMock
+    ) as mock_calendar, patch.object(
+        Message, "answer", new_callable=AsyncMock
+    ):
 
         calendar_mock = AsyncMock()
         now = datetime.now() + timedelta(days=1)
@@ -209,11 +258,17 @@ async def test_input_date_for_scheduler(callback_query, fsm_context):
 
 @pytest.mark.asyncio
 async def test_show_schedule(callback_query, fsm_context):
-    with patch("utils.calendar.get_calendar", new_callable=AsyncMock) as mock_calendar, \
-         patch("database.methods.db.find_free_slots", new_callable=AsyncMock) as mock_find_slots, \
-         patch.object(Message, "answer", new_callable=AsyncMock), \
-         patch.object(Message, "delete_reply_markup", new_callable=AsyncMock), \
-         patch.object(CallbackQuery, "answer", new_callable=AsyncMock):
+    with patch(
+        "utils.calendar.get_calendar", new_callable=AsyncMock
+    ) as mock_calendar, patch(
+        "database.methods.db.find_free_slots", new_callable=AsyncMock
+    ) as mock_find_slots, patch.object(
+        Message, "answer", new_callable=AsyncMock
+    ), patch.object(
+        Message, "delete_reply_markup", new_callable=AsyncMock
+    ), patch.object(
+        CallbackQuery, "answer", new_callable=AsyncMock
+    ):
 
         date_today = datetime.today().date() + timedelta(days=1)
         selected_date = datetime.combine(date_today, time(0, 0))
@@ -223,13 +278,19 @@ async def test_show_schedule(callback_query, fsm_context):
         mock_calendar.return_value = (calendar_mock, date_today)
         mock_find_slots.return_value = ["10:00", "11:00"]
 
-        callback_data = SimpleCalendarCallback(act="DAY", year=selected_date.year, month=selected_date.month, day=selected_date.day)
+        callback_data = SimpleCalendarCallback(
+            act="DAY",
+            year=selected_date.year,
+            month=selected_date.month,
+            day=selected_date.day,
+        )
         callback = callback_query(callback_data.pack())
 
-        await fsm_context.set_state(SchedulerClient.waiting_for_date_to_show_schedule)
+        await fsm_context.set_state(
+            SchedulerClient.waiting_for_date_to_show_schedule
+        )
 
         await show_schedule(callback, fsm_context, callback_data)
 
         assert await fsm_context.get_state() == UserStatus.client
         mock_find_slots.assert_awaited_with(selected_date)
-
