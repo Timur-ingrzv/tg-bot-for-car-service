@@ -14,6 +14,8 @@ from handlers.handlers_for_clients import (
     input_time_to_add_schedule,
     input_service_name,
     add_schedule,
+    input_date_for_scheduler,
+    show_schedule
 )
 from utils.states import SchedulerClient, UserStatus
 from handlers.handlers_for_clients import SimpleCalendarCallback
@@ -71,12 +73,14 @@ def callback_query():
         )
     return _factory
 
+
 '''Тестирование записи на услугу'''
 @pytest.mark.asyncio
 async def test_input_date_to_add_schedule(callback_query, fsm_context):
+    now = datetime.now() + timedelta(days=1)
     with patch("utils.calendar.get_calendar", new_callable=AsyncMock) as mock_calendar, \
             patch.object(Message, "answer", new_callable=AsyncMock) as mock_answer:
-        mock_calendar.return_value = (AsyncMock(), datetime(2025, 7, 23))
+        mock_calendar.return_value = (AsyncMock(), now)
 
         callback = callback_query("sign up for service")
 
@@ -94,12 +98,13 @@ async def test_input_date_to_add_schedule(callback_query, fsm_context):
 @pytest.mark.asyncio
 async def test_input_time_to_add_schedule(callback_query, fsm_context):
     calendar_mock = AsyncMock()
+    now = datetime.now() + timedelta(days=1)
     calendar_mock.process_selection.return_value = (True, date.today() + timedelta(days=1))
     with patch("utils.calendar.get_calendar", new_callable=AsyncMock) as mock_calendar, \
             patch.object(Message, "answer", new_callable=AsyncMock) as mock_msg_answer, \
             patch.object(Message, "delete_reply_markup", new_callable=AsyncMock) as mock_delete_markup:
         mock_calendar.return_value = (calendar_mock, date.today())
-        callback_data = SimpleCalendarCallback(act="DAY", year=2025, month=7, day=23)
+        callback_data = SimpleCalendarCallback(act="DAY", year=now.year, month=now.month, day=now.day)
         callback = callback_query(callback_data.pack())
 
         await fsm_context.set_state(SchedulerClient.waiting_for_date_to_add_schedule)
@@ -183,3 +188,48 @@ async def test_add_schedule(callback_query, fsm_context):
         data = await fsm_context.get_data()
         assert data["user_id"] == 123
         assert data["status"] == "active"
+
+
+'''Тестирование просмотра расписания'''
+@pytest.mark.asyncio
+async def test_input_date_for_scheduler(callback_query, fsm_context):
+    with patch("utils.calendar.get_calendar", new_callable=AsyncMock) as mock_calendar, \
+         patch.object(Message, "answer", new_callable=AsyncMock):
+
+        calendar_mock = AsyncMock()
+        now = datetime.now() + timedelta(days=1)
+        mock_calendar.return_value = (calendar_mock, now)
+
+        callback = callback_query("show scheduler for client")
+        await input_date_for_scheduler(callback, fsm_context)
+
+        state = await fsm_context.get_state()
+        assert state == SchedulerClient.waiting_for_date_to_show_schedule
+
+
+@pytest.mark.asyncio
+async def test_show_schedule(callback_query, fsm_context):
+    with patch("utils.calendar.get_calendar", new_callable=AsyncMock) as mock_calendar, \
+         patch("database.methods.db.find_free_slots", new_callable=AsyncMock) as mock_find_slots, \
+         patch.object(Message, "answer", new_callable=AsyncMock), \
+         patch.object(Message, "delete_reply_markup", new_callable=AsyncMock), \
+         patch.object(CallbackQuery, "answer", new_callable=AsyncMock):
+
+        date_today = datetime.today().date() + timedelta(days=1)
+        selected_date = datetime.combine(date_today, time(0, 0))
+        calendar_mock = AsyncMock()
+        calendar_mock.process_selection.return_value = (True, selected_date)
+
+        mock_calendar.return_value = (calendar_mock, date_today)
+        mock_find_slots.return_value = ["10:00", "11:00"]
+
+        callback_data = SimpleCalendarCallback(act="DAY", year=selected_date.year, month=selected_date.month, day=selected_date.day)
+        callback = callback_query(callback_data.pack())
+
+        await fsm_context.set_state(SchedulerClient.waiting_for_date_to_show_schedule)
+
+        await show_schedule(callback, fsm_context, callback_data)
+
+        assert await fsm_context.get_state() == UserStatus.client
+        mock_find_slots.assert_awaited_with(selected_date)
+
