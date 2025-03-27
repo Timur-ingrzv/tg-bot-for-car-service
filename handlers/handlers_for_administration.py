@@ -415,6 +415,24 @@ async def show_working_time(message: types.Message, state: FSMContext):
     await message.answer(ans, parse_mode="HTML")
 
 
+@router.callback_query(F.data == "add worker")
+async def input_name_to_add_worker(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(WorkingTime.waiting_worker_name_to_add)
+    await callback.message.answer("Введите имя работника")
+
+
+@router.message(StateFilter(WorkingTime.waiting_worker_name_to_add))
+async def add_worker(message: types.Message, state: FSMContext):
+    await state.set_state(UserStatus.admin)
+    worker_name = message.text.strip("")
+    res = await db.find_worker(worker_name)
+    if res:
+        await message.answer("Работник с данным именем уже существует")
+        return
+
+    res = await db.add_worker(worker_name)
+    await message.answer(res)
+
 @router.callback_query(F.data == "show workers info")
 async def show_workers_info(callback: types.CallbackQuery, state: FSMContext):
     workers_groups = await db.show_workers_info()

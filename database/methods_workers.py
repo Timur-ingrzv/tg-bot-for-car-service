@@ -37,6 +37,23 @@ class MethodsWorkers:
         finally:
             await connection.close()
 
+    async def add_worker(self, worker_name: str) -> str:
+        """Добавляет нового сотрудника"""
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            query = (
+                Query.into(self.workers)
+                .columns(self.workers.name)
+                .insert(worker_name)
+            )
+            await connection.execute(str(query))
+            return f"Работник {worker_name} добавлен"
+        except Exception as e:
+            logging.error(e)
+            return "Ошибка обращения к базе, повторите позже"
+
+        finally:
+            await connection.close()
     async def show_working_time(self, worker_name):
         """Показывает время работы работника по дням"""
         connection = await asyncpg.connect(**self.db_config)

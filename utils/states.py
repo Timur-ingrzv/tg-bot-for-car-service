@@ -1,5 +1,3 @@
-from symtable import Class
-
 from aiogram.fsm.state import StatesGroup, State
 
 
@@ -53,6 +51,8 @@ class WorkingTime(StatesGroup):
     waiting_time = State()
 
     waiting_worker_name_to_show = State()
+
+    waiting_worker_name_to_add = State()
 
 
 class Statistic(StatesGroup):
