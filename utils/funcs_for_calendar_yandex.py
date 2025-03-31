@@ -63,4 +63,4 @@ async def delete_event(uid: str):
             else:
                 text = await resp.text()
                 print(f"Ошибка: {text}")
-asyncio.run(delete_event("a9c744c2-45f7-460b-9978-cdff8fdd2aa2"))
+
