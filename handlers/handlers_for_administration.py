@@ -373,6 +373,12 @@ async def change_working_time(message: types.Message, state: FSMContext):
 
     try:
         start, end = map(int, working_time.split("-"))
+        if start >= end:
+            await message.answer("Время начала работы должно быть меньше окончания")
+            return
+        if not ((0 <= start <= 23) & (0 <= end <= 23)):
+            await message.answer("Время должно быть в диапазоне от 0 до 23")
+            return
         start = time(hour=start)
         end = time(hour=end)
         res = await db.add_working_time(
