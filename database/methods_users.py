@@ -163,6 +163,15 @@ class MethodsUsers:
             if changed_field == "phone_number":
                 field = self.users.phone_number
 
+            check_query = (
+                Query.from_(self.users)
+                .select(self.users.id)
+                .where(field == new_value)
+            )
+            check = await connection.fetch(str(check_query))
+            if check and changed_field in ("name", "login"):
+                return "Данное значение уже занято, попробуйте другое"
+
             query = (
                 Query.update(self.users)
                 .set(field, new_value)

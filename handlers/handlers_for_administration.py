@@ -548,7 +548,9 @@ async def get_statistic(message: types.Message, state: FSMContext):
     start_date = user_data["start_date"]
     end_date = user_data["end_date"]
     end_date = datetime.combine(end_date, end_time.time())
-
+    if start_date > end_date:
+        await message.answer("Начало промежутка должно быть раньше конца")
+        return
     stat = await db.get_statistic(start_date, end_date)
     if not stat:
         await message.answer("В данный период нет ни одной записи")
