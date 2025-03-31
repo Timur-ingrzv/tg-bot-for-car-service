@@ -11,7 +11,7 @@ from keyboards.keyboards_for_clients import (
     get_interface_change_profile,
     get_list_services,
 )
-from utils.calendar import get_calendar
+from utils.calendar_tg import get_calendar
 from utils.middlewares import SQLInjectionMiddleware
 from utils.states import ChangeUserProfile, UserStatus, SchedulerClient
 
@@ -169,6 +169,9 @@ async def delete_schedule_client(message: types.Message, state: FSMContext):
             )
             return
         valid_date = datetime.combine(data["date"], time(hour=valid_time))
+        if valid_date < datetime.now():
+            await message.answer("Вы можете удалить только записи, время которой не наступило")
+            return
         res = await db.delete_schedule_client(data["user_id"], valid_date)
         await message.answer(res)
 

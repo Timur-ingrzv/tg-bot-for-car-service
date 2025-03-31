@@ -41,6 +41,27 @@ class MethodsUsers:
         finally:
             await connection.close()
 
+    async def find_user_name(self, id: int) -> Dict:
+        """Метод нахождения пользователя по id"""
+        connection = await asyncpg.connect(**self.db_config)
+        try:
+            query = (
+                Query.from_(self.users)
+                .select(
+                    self.users.name,
+                )
+                .where(self.users.id == id)
+            )
+            users = await connection.fetchrow(str(query))
+            return users["name"]
+
+        except Exception as e:
+            logging.error(e)
+            return {"status": "Ошибка подключения, повторите позже"}
+
+        finally:
+            await connection.close()
+
     async def find_user(self, login: str, password: str) -> Dict:
         """Метод нахождения пользователя по паре логин-пароль"""
         connection = await asyncpg.connect(**self.db_config)

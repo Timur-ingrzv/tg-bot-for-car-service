@@ -107,12 +107,15 @@ async def input_password(message: types.Message, state: FSMContext):
 async def input_phone_number(message: types.Message, state: FSMContext):
     await state.update_data(password=message.text.strip())
     await state.set_state(Registration.waiting_for_phone_number)
-    await message.answer("Введите номер телефона(только цифры начиная с 8)")
+    await message.answer("Введите номер телефона(только цифры или +")
 
 
 @router.message(StateFilter(Registration.waiting_for_phone_number))
 async def registration(message: types.Message, state: FSMContext):
     phone_number = message.text.strip()
+    if not all(sym in "123456789+ ()" for sym in phone_number):
+        await message.answer("Введите корректный номер телефона(пример: +79998593535)")
+        return
     data = await state.get_data()
     data["phone_number"] = phone_number
     data["status"] = "client"

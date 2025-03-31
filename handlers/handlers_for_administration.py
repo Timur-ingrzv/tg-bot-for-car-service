@@ -21,7 +21,7 @@ from keyboards.keyboards_for_administration import (
     get_service_col_to_change,
 )
 from keyboards.keyboards_for_clients import get_list_services
-from utils.calendar import get_calendar
+from utils.calendar_tg import get_calendar
 from utils.middlewares import SQLInjectionMiddleware
 from utils.states import (
     SchedulerAdmin,
@@ -646,6 +646,9 @@ async def input_phone_number(message: types.Message, state: FSMContext):
 @router.message(StateFilter(UsersAdmin.waiting_for_phone_number))
 async def input_status(message: types.Message, state: FSMContext):
     phone_number = message.text.strip()
+    if not all(sym in "123456789+ ()" for sym in phone_number):
+        await message.answer("Введите корректный номер телефона(пример: +79998593535)")
+        return
     await state.set_state(UsersAdmin.waiting_for_status)
     await state.update_data(phone_number=phone_number)
     await message.answer(

@@ -1,10 +1,10 @@
 import datetime
 import logging
-
+import uuid
 from typing import Dict, List
 import asyncpg
 from pypika import Table, Query, functions as fn
-
+from utils.funcs_for_calendar_yandex import add_event, delete_event
 
 class MethodsSchedule:
     def __init__(self, config: Dict):
@@ -111,6 +111,7 @@ class MethodsSchedule:
             if not workers:
                 return "В данное время нет свободных работников"
 
+            event_uid = str(uuid.uuid4())
             # добавляем новую запись
             service_id = (
                 Query.from_(self.services_info)
@@ -124,15 +125,20 @@ class MethodsSchedule:
                     self.schedule.client_id,
                     self.schedule.worker_id,
                     self.schedule.date,
+                    self.schedule.event_id
                 )
                 .insert(
                     service_id,
                     data["client_id"],
                     workers[0]["id"],
                     data["date"],
+                    event_uid
                 )
             )
             await connection.execute(str(add_query))
+            data["uid"] = event_uid
+            data["worker_name"] = workers[0]["name"]
+            await add_event(data)
             return f"Вы успешно записались на {data['date'].strftime('%d-%m-%Y %H-%M')}"
 
         except Exception as e:
@@ -161,6 +167,7 @@ class MethodsSchedule:
                 )
                 .where(self.schedule.client_id == user_id)
                 .where(cur_date < self.schedule.date)
+                .orderby(self.schedule.date)
             )
             res = await connection.fetch(str(query))
             if not res:
@@ -194,6 +201,7 @@ class MethodsSchedule:
                     self.services_info.price,
                 )
                 .where(self.schedule.date[start:end])
+                .orderby(self.schedule.date)
             )
             res = await connection.fetch(str(query))
             return res
@@ -262,6 +270,7 @@ class MethodsSchedule:
             if not res:
                 return "Работник в данное время не работает"
 
+            event_uid = str(uuid.uuid4())
             query = (
                 Query.into(self.schedule)
                 .columns(
@@ -269,10 +278,13 @@ class MethodsSchedule:
                     self.schedule.client_id,
                     self.schedule.worker_id,
                     self.schedule.date,
+                    self.schedule.event_id
                 )
-                .insert(service_id, client_id, worker_id, info["date"])
+                .insert(service_id, client_id, worker_id, info["date"], event_uid)
             )
             await connection.execute(str(query))
+            info["uid"] = event_uid
+            await add_event(info)
             return "Запись успешно добавлена"
 
         except Exception as e:
