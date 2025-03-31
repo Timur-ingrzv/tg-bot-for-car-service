@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime, timedelta, time
 
 from aiogram import F, Router, types
@@ -37,14 +38,19 @@ async def change_profile_data(callback: types.CallbackQuery):
 
 @router.callback_query(F.data.startswith("change-client-profile_"))
 async def input_new_value(callback: types.CallbackQuery, state: FSMContext):
-    await state.update_data(
-        changed_field=callback.data.split("_", maxsplit=1)[1]
-    )
+    changed_field = callback.data.split("_", maxsplit=1)[1]
+    await state.update_data(changed_field=changed_field)
+    field = defaultdict(lambda: "Неопознано")
+    field["login"] = "Логин"
+    field["phone_number"] =  "Номер телефона"
+    field["name"] = ["Имя"]
+    field["password"] = "Пароль"
     from main import bot
+
     await bot.edit_message_text(
         chat_id=callback.message.chat.id,
         message_id=callback.message.message_id,
-        text=f"Вы для изменения выбрали поле <b>{callback.data.split('_', maxsplit=1)[1]}</b>",
+        text=f"Вы для изменения выбрали поле <b>{field[changed_field]}</b>",
         reply_markup=None,
         parse_mode="HTML",
     )
@@ -55,26 +61,32 @@ async def input_new_value(callback: types.CallbackQuery, state: FSMContext):
 @router.message(StateFilter(ChangeUserProfile.waiting_for_new_value))
 async def change_user_profile(message: types.Message, state: FSMContext):
     data = await state.get_data()
-    await state.clear()
-    await state.update_data(user_id=data["user_id"])
-    await state.update_data(status=data["status"])
 
-    if data["status"] == "client":
-        await state.set_state(UserStatus.client)
-    else:
-        await state.set_state(UserStatus.admin)
     changed_field = data["changed_field"]
     new_value = message.text.strip()
     if new_value == "":
         await message.answer("Новое значение не может быть пустой строкой")
         return
 
-    if changed_field == "phone_number" and len(new_value) != 11:
-        await message.answer("Новый номер телефона должен содержать 11 цифр")
-        return
+    if changed_field == "phone_number":
+        if not all(sym in "123456789+ ()" for sym in new_value):
+            await message.answer(
+                "Введите корректный номер телефона(пример: +79998593535)"
+            )
+            return
 
     result = await db.change_profile(data["user_id"], changed_field, new_value)
     await message.answer(result)
+    if "занято" in result:
+        return
+
+    await state.clear()
+    await state.update_data(user_id=data["user_id"])
+    await state.update_data(status=data["status"])
+    if data["status"] == "client":
+        await state.set_state(UserStatus.client)
+    else:
+        await state.set_state(UserStatus.admin)
 
 
 @router.callback_query(F.data == "show scheduler for client")
@@ -104,7 +116,7 @@ async def show_schedule(
     selected, date = await calendar.process_selection(callback, callback_data)
     if selected:
         await state.set_state(UserStatus.client)
-        if date < cur_date:
+        if date.date() < cur_date.date():
             await callback.message.answer("Выберите дату позже текущей")
             return
         res = await db.find_free_slots(date)
@@ -157,7 +169,6 @@ async def delete_schedule_client(message: types.Message, state: FSMContext):
     try:
         valid_time = int(message.text.strip())
         if not (0 <= valid_time < 24):
-            await state.set_state(UserStatus.client)
             await message.answer(
                 "Время должно быть целое число в диапазоне от 0 до 23"
             )
@@ -209,6 +220,11 @@ async def input_time_to_add_schedule(
     calendar, cur_date = await get_calendar(callback.from_user)
     selected, date = await calendar.process_selection(callback, callback_data)
     if selected:
+        if date.date() < cur_date.date():
+            await callback.message.answer("Выберите дату позже текущей")
+            await state.set_state(UserStatus)
+            return
+
         await state.set_state(SchedulerClient.waiting_for_time_to_add_schedule)
         await state.update_data(date=date)
         await callback.message.answer("Введите желаемое время - час дня")
@@ -226,12 +242,10 @@ async def input_service_name(message: types.Message, state: FSMContext):
         valid_date = datetime.combine(data["date"], time(hour=valid_time))
         if valid_date < datetime.now():
             await message.answer("Выберите время позже текущего")
-            await state.set_state(UserStatus.client)
             return
         await state.update_data(date=valid_date)
 
     except Exception as e:
-        await state.set_state(UserStatus.client)
         await message.answer(
             "Неправильный формат времени - введите число от 0 до 23"
         )

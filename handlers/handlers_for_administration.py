@@ -354,14 +354,13 @@ async def input_time(callback: types.CallbackQuery, state: FSMContext):
 
 @router.message(StateFilter(WorkingTime.waiting_time))
 async def change_working_time(message: types.Message, state: FSMContext):
-    data = await state.get_data()
-    await state.clear()
-    await state.update_data(user_id=data["user_id"])
-    await state.update_data(status=data["status"])
-    await state.set_state(UserStatus.admin)
-
     working_time = message.text.strip()
     if working_time == "0":
+        data = await state.get_data()
+        await state.clear()
+        await state.update_data(user_id=data["user_id"])
+        await state.update_data(status=data["status"])
+        await state.set_state(UserStatus.admin)
         res = await db.delete_working_time(
             int(data["worker_id"]), int(data["weekday"])
         )
@@ -378,6 +377,12 @@ async def change_working_time(message: types.Message, state: FSMContext):
         if not ((0 <= start <= 23) & (0 <= end <= 23)):
             await message.answer("Время должно быть в диапазоне от 0 до 23")
             return
+
+        data = await state.get_data()
+        await state.clear()
+        await state.update_data(user_id=data["user_id"])
+        await state.update_data(status=data["status"])
+        await state.set_state(UserStatus.admin)
         start = time(hour=start)
         end = time(hour=end)
         res = await db.add_working_time(
@@ -752,8 +757,16 @@ async def input_service_name_to_add(
 
 @router.message(StateFilter(Services.waiting_for_service_name_to_add))
 async def input_price_to_add(message: types.Message, state: FSMContext):
-    await state.set_state(Services.waiting_for_price_to_add)
     service_name = message.text.strip()
+    check = await db.check_service_existing(service_name)
+    if check == 1:
+        await message.answer("Данная услуга уже существует")
+        return
+    elif check == -1:
+        await message.answer("Ошибка обращения к базе данных, повторите позже")
+        await state.set_state(UserStatus.admin)
+        return
+    await state.set_state(Services.waiting_for_price_to_add)
     await state.update_data(service_name=service_name)
     await message.answer("Введите цену услуги в руб.")
 
@@ -860,14 +873,16 @@ async def change_service(message: types.Message, state: FSMContext):
         )
         return
     data = await state.get_data()
-    await state.clear()
-    await state.set_state(UserStatus.admin)
-    await state.update_data(user_id=data["user_id"])
-    await state.update_data(status=data["status"])
     res = await db.change_service_info(
         data["service_name"], data["col"], new_value
     )
     await message.answer(res)
+    if res == "Выплата сотруднику не может быть больше цены услуги":
+        return
+    await state.clear()
+    await state.set_state(UserStatus.admin)
+    await state.update_data(user_id=data["user_id"])
+    await state.update_data(status=data["status"])
 
 
 @router.callback_query(F.data == "delete service")
