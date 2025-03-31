@@ -41,7 +41,6 @@ async def input_new_value(callback: types.CallbackQuery, state: FSMContext):
         changed_field=callback.data.split("_", maxsplit=1)[1]
     )
     from main import bot
-
     await bot.edit_message_text(
         chat_id=callback.message.chat.id,
         message_id=callback.message.message_id,
@@ -155,11 +154,6 @@ async def input_time_to_delete_schedule(
     StateFilter(SchedulerClient.waiting_for_time_to_delete_schedule)
 )
 async def delete_schedule_client(message: types.Message, state: FSMContext):
-    data = await state.get_data()
-    await state.clear()
-    await state.set_state(UserStatus.client)
-    await state.update_data(user_id=data["user_id"])
-    await state.update_data(status=data["status"])
     try:
         valid_time = int(message.text.strip())
         if not (0 <= valid_time < 24):
@@ -168,9 +162,17 @@ async def delete_schedule_client(message: types.Message, state: FSMContext):
                 "Время должно быть целое число в диапазоне от 0 до 23"
             )
             return
+
+        data = await state.get_data()
+        await state.clear()
+        await state.set_state(UserStatus.client)
+        await state.update_data(user_id=data["user_id"])
+        await state.update_data(status=data["status"])
         valid_date = datetime.combine(data["date"], time(hour=valid_time))
         if valid_date < datetime.now():
-            await message.answer("Вы можете удалить только записи, время которой не наступило")
+            await message.answer(
+                "Вы можете удалить только записи, время которой не наступило"
+            )
             return
         res = await db.delete_schedule_client(data["user_id"], valid_date)
         await message.answer(res)
@@ -207,10 +209,6 @@ async def input_time_to_add_schedule(
     calendar, cur_date = await get_calendar(callback.from_user)
     selected, date = await calendar.process_selection(callback, callback_data)
     if selected:
-        if date < cur_date:
-            await callback.message.answer("Выберите дату позже текущей")
-            await state.set_state(UserStatus.client)
-            return
         await state.set_state(SchedulerClient.waiting_for_time_to_add_schedule)
         await state.update_data(date=date)
         await callback.message.answer("Введите желаемое время - час дня")
@@ -221,7 +219,6 @@ async def input_service_name(message: types.Message, state: FSMContext):
     try:
         valid_time = int(message.text.strip())
         if not (0 <= valid_time < 24):
-            await state.set_state(UserStatus.client)
             await message.answer("Время должно быть в диапазоне от 0 до 23")
             return
 

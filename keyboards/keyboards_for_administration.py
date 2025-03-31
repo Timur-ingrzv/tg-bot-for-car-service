@@ -108,8 +108,7 @@ def get_interface_manage_workers():
     buttons = [
         [
             types.InlineKeyboardButton(
-                text="Добавить сотрудника",
-                callback_data="add worker"
+                text="Добавить сотрудника", callback_data="add worker"
             )
         ],
         [

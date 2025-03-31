@@ -143,7 +143,6 @@ async def input_time_to_add(
 
 @router.message(StateFilter(SchedulerAdmin.waiting_for_time_to_add))
 async def add_scheduler(message: types.Message, state: FSMContext):
-    await state.set_state(UserStatus.admin)
     try:
         valid_time = int(message.text.strip())
         if not (0 <= valid_time < 24):
@@ -215,16 +214,15 @@ async def input_time_to_delete(
 
 @router.message(StateFilter(SchedulerAdmin.waiting_for_time_to_delete))
 async def delete_scheduler(message: types.Message, state: FSMContext):
-    await state.set_state(UserStatus.admin)
     try:
         valid_time = int(message.text.strip())
         if not (0 <= valid_time < 24):
-            await state.set_state(UserStatus.admin)
             await message.answer(
                 "Время должно быть целое число в диапазоне от 0 до 23"
             )
             return
 
+        await state.set_state(UserStatus.admin)
         data = await state.get_data()
         await state.clear()
         await state.set_state(UserStatus.admin)
@@ -332,7 +330,6 @@ async def input_weekday(message: types.Message, state: FSMContext):
     worker_name = message.text.strip()
     worker_id = await db.find_worker(worker_name)
     if not worker_id:
-        await state.set_state(UserStatus.admin)
         await message.answer("Работника с таким именем не существует")
         return
 
@@ -374,7 +371,9 @@ async def change_working_time(message: types.Message, state: FSMContext):
     try:
         start, end = map(int, working_time.split("-"))
         if start >= end:
-            await message.answer("Время начала работы должно быть меньше окончания")
+            await message.answer(
+                "Время начала работы должно быть меньше окончания"
+            )
             return
         if not ((0 <= start <= 23) & (0 <= end <= 23)):
             await message.answer("Время должно быть в диапазоне от 0 до 23")
@@ -422,22 +421,25 @@ async def show_working_time(message: types.Message, state: FSMContext):
 
 
 @router.callback_query(F.data == "add worker")
-async def input_name_to_add_worker(callback: types.CallbackQuery, state: FSMContext):
+async def input_name_to_add_worker(
+    callback: types.CallbackQuery, state: FSMContext
+):
     await state.set_state(WorkingTime.waiting_worker_name_to_add)
     await callback.message.answer("Введите имя работника")
 
 
 @router.message(StateFilter(WorkingTime.waiting_worker_name_to_add))
 async def add_worker(message: types.Message, state: FSMContext):
-    await state.set_state(UserStatus.admin)
     worker_name = message.text.strip("")
     res = await db.find_worker(worker_name)
     if res:
         await message.answer("Работник с данным именем уже существует")
         return
 
+    await state.set_state(UserStatus.admin)
     res = await db.add_worker(worker_name)
     await message.answer(res)
+
 
 @router.callback_query(F.data == "show workers info")
 async def show_workers_info(callback: types.CallbackQuery, state: FSMContext):
@@ -490,14 +492,13 @@ async def input_start_time(
 
 @router.message(StateFilter(Statistic.waiting_start_time))
 async def input_end_date(message: types.CallbackQuery, state: FSMContext):
-    await state.set_state(Statistic.waiting_end_date)
     start_time = message.text.strip()
     try:
         start_time = datetime.strptime(start_time, "%H:%M")
     except Exception as e:
         await message.answer("Время должно быть в формате hours:minutes")
-        await state.set_state(UserStatus.admin)
         return
+    await state.set_state(Statistic.waiting_end_date)
     user_data = await state.get_data()
     start_date = user_data["start_date"]
     start_date = datetime.combine(start_date, start_time.time())
@@ -533,18 +534,18 @@ async def input_end_time(
 
 @router.message(StateFilter(Statistic.waiting_end_time))
 async def get_statistic(message: types.Message, state: FSMContext):
-    user_data = await state.get_data()
-    await state.clear()
-    await state.update_data(user_id=user_data["user_id"])
-    await state.update_data(status=user_data["status"])
-    await state.set_state(UserStatus.admin)
-
     end_time = message.text.strip()
     try:
         end_time = datetime.strptime(end_time, "%H:%M")
     except Exception as e:
         await message.answer("Время должно быть в формате hours:minutes")
         return
+
+    user_data = await state.get_data()
+    await state.clear()
+    await state.update_data(user_id=user_data["user_id"])
+    await state.update_data(status=user_data["status"])
+    await state.set_state(UserStatus.admin)
     start_date = user_data["start_date"]
     end_date = user_data["end_date"]
     end_date = datetime.combine(end_date, end_time.time())
@@ -629,7 +630,6 @@ async def input_password(message: types.Message, state: FSMContext):
     login = message.text.strip()
     if await db.check_existing(login=login):
         await message.answer("Данный логин занят, попробуйте другой")
-        await state.set_state(UserStatus.admin)
         return
     await state.update_data(login=login)
     await state.set_state(UsersAdmin.waiting_for_password)
@@ -647,7 +647,9 @@ async def input_phone_number(message: types.Message, state: FSMContext):
 async def input_status(message: types.Message, state: FSMContext):
     phone_number = message.text.strip()
     if not all(sym in "123456789+ ()" for sym in phone_number):
-        await message.answer("Введите корректный номер телефона(пример: +79998593535)")
+        await message.answer(
+            "Введите корректный номер телефона(пример: +79998593535)"
+        )
         return
     await state.set_state(UsersAdmin.waiting_for_status)
     await state.update_data(phone_number=phone_number)
@@ -761,7 +763,6 @@ async def input_payout(message: types.Message, state: FSMContext):
     try:
         price = int(message.text.strip())
     except Exception:
-        await state.set_state(UserStatus.admin)
         await message.answer(
             "Неправильный формат цены, должно быть целое число"
         )
@@ -773,11 +774,6 @@ async def input_payout(message: types.Message, state: FSMContext):
 
 @router.message(StateFilter(Services.waiting_for_payout_to_add))
 async def add_service(message: types.Message, state: FSMContext):
-    data = await state.get_data()
-    await state.clear()
-    await state.set_state(UserStatus.admin)
-    await state.update_data(user_id=data["user_id"])
-    await state.update_data(status=data["status"])
     try:
         payout = int(message.text.strip())
     except Exception:
@@ -785,11 +781,17 @@ async def add_service(message: types.Message, state: FSMContext):
             "Неправильный формат выплаты, должно быть целое число"
         )
         return
+
+    data = await state.get_data()
     if data["price"] < payout:
         await message.answer(
             "Выплата сотруднику не может быть больше цены услуги"
         )
         return
+    await state.clear()
+    await state.set_state(UserStatus.admin)
+    await state.update_data(user_id=data["user_id"])
+    await state.update_data(status=data["status"])
     res = await db.add_service(data["service_name"], data["price"], payout)
     await message.answer(res)
 
@@ -850,12 +852,6 @@ async def input_new_value(callback: types.CallbackQuery, state: FSMContext):
 
 @router.message(StateFilter(Services.waiting_for_new_value_to_change))
 async def change_service(message: types.Message, state: FSMContext):
-    data = await state.get_data()
-    await state.clear()
-    await state.set_state(UserStatus.admin)
-    await state.update_data(user_id=data["user_id"])
-    await state.update_data(status=data["status"])
-
     try:
         new_value = int(message.text.strip())
     except Exception:
@@ -863,6 +859,11 @@ async def change_service(message: types.Message, state: FSMContext):
             "Неправильный формат нового значения, должно быть целое число"
         )
         return
+    data = await state.get_data()
+    await state.clear()
+    await state.set_state(UserStatus.admin)
+    await state.update_data(user_id=data["user_id"])
+    await state.update_data(status=data["status"])
     res = await db.change_service_info(
         data["service_name"], data["col"], new_value
     )
