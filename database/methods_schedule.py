@@ -6,6 +6,7 @@ import asyncpg
 from pypika import Table, Query, functions as fn
 from utils.funcs_for_calendar_yandex import add_event, delete_event
 
+
 class MethodsSchedule:
     def __init__(self, config: Dict):
         self.db_config = config
@@ -125,14 +126,14 @@ class MethodsSchedule:
                     self.schedule.client_id,
                     self.schedule.worker_id,
                     self.schedule.date,
-                    self.schedule.event_id
+                    self.schedule.event_id,
                 )
                 .insert(
                     service_id,
                     data["client_id"],
                     workers[0]["id"],
                     data["date"],
-                    event_uid
+                    event_uid,
                 )
             )
             await connection.execute(str(add_query))
@@ -278,9 +279,11 @@ class MethodsSchedule:
                     self.schedule.client_id,
                     self.schedule.worker_id,
                     self.schedule.date,
-                    self.schedule.event_id
+                    self.schedule.event_id,
                 )
-                .insert(service_id, client_id, worker_id, info["date"], event_uid)
+                .insert(
+                    service_id, client_id, worker_id, info["date"], event_uid
+                )
             )
             await connection.execute(str(query))
             info["uid"] = event_uid
@@ -304,7 +307,7 @@ class MethodsSchedule:
                 .on(self.users.id == self.schedule.client_id)
                 .join(self.workers)
                 .on(self.workers.id == self.schedule.worker_id)
-                .select(self.schedule.id)
+                .select(self.schedule.id, self.schedule.event_id)
                 .where(self.schedule.date == date)
                 .where((self.workers.name == name) | (self.users.name == name))
             )
@@ -318,6 +321,8 @@ class MethodsSchedule:
                 .where(self.schedule.id == record["id"])
             )
             await connection.execute(str(query))
+            # удаление из календаря
+            await delete_event(record["event_id"])
             return "Запись успешно удалена"
 
         except Exception as e:
@@ -333,7 +338,7 @@ class MethodsSchedule:
         try:
             find_query = (
                 Query.from_(self.schedule)
-                .select(self.schedule.id)
+                .select(self.schedule.id, self.schedule.event_id)
                 .where(
                     (self.schedule.client_id == id)
                     & (self.schedule.date == date)
@@ -349,6 +354,8 @@ class MethodsSchedule:
                 .where(self.schedule.id == record["id"])
             )
             await connection.execute(str(query))
+            # удаление из календаря
+            await delete_event(record["event_id"])
             return "Запись успешно удалена"
 
         except Exception as e:

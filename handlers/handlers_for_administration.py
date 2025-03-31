@@ -374,7 +374,9 @@ async def change_working_time(message: types.Message, state: FSMContext):
     try:
         start, end = map(int, working_time.split("-"))
         if start >= end:
-            await message.answer("Время начала работы должно быть меньше окончания")
+            await message.answer(
+                "Время начала работы должно быть меньше окончания"
+            )
             return
         if not ((0 <= start <= 23) & (0 <= end <= 23)):
             await message.answer("Время должно быть в диапазоне от 0 до 23")
@@ -422,7 +424,9 @@ async def show_working_time(message: types.Message, state: FSMContext):
 
 
 @router.callback_query(F.data == "add worker")
-async def input_name_to_add_worker(callback: types.CallbackQuery, state: FSMContext):
+async def input_name_to_add_worker(
+    callback: types.CallbackQuery, state: FSMContext
+):
     await state.set_state(WorkingTime.waiting_worker_name_to_add)
     await callback.message.answer("Введите имя работника")
 
@@ -438,6 +442,7 @@ async def add_worker(message: types.Message, state: FSMContext):
 
     res = await db.add_worker(worker_name)
     await message.answer(res)
+
 
 @router.callback_query(F.data == "show workers info")
 async def show_workers_info(callback: types.CallbackQuery, state: FSMContext):
@@ -647,7 +652,9 @@ async def input_phone_number(message: types.Message, state: FSMContext):
 async def input_status(message: types.Message, state: FSMContext):
     phone_number = message.text.strip()
     if not all(sym in "123456789+ ()" for sym in phone_number):
-        await message.answer("Введите корректный номер телефона(пример: +79998593535)")
+        await message.answer(
+            "Введите корректный номер телефона(пример: +79998593535)"
+        )
         return
     await state.set_state(UsersAdmin.waiting_for_status)
     await state.update_data(phone_number=phone_number)

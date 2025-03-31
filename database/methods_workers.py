@@ -54,6 +54,7 @@ class MethodsWorkers:
 
         finally:
             await connection.close()
+
     async def show_working_time(self, worker_name):
         """Показывает время работы работника по дням"""
         connection = await asyncpg.connect(**self.db_config)

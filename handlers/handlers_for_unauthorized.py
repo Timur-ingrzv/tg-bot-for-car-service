@@ -114,7 +114,9 @@ async def input_phone_number(message: types.Message, state: FSMContext):
 async def registration(message: types.Message, state: FSMContext):
     phone_number = message.text.strip()
     if not all(sym in "123456789+ ()" for sym in phone_number):
-        await message.answer("Введите корректный номер телефона(пример: +79998593535)")
+        await message.answer(
+            "Введите корректный номер телефона(пример: +79998593535)"
+        )
         return
     data = await state.get_data()
     data["phone_number"] = phone_number

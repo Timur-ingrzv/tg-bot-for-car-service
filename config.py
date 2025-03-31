@@ -23,5 +23,7 @@ DATABASE_CONFIG = {
 
 YANDEX_CALDAV_URL = "https://caldav.yandex.ru"
 USERNAME = "Timuraka47@yandex.ru"
-PASSWORD = str(os.getenv("PASSWORD_DB"))
-calendar_url = f"https://caldav.yandex.ru/calendars/{USERNAME}/events-32174114/"
+PASSWORD = str(os.getenv("PASSWORD_YANDEX"))
+calendar_url = (
+    f"https://caldav.yandex.ru/calendars/{USERNAME}/events-32174114/"
+)

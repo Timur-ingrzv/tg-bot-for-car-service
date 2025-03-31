@@ -170,7 +170,9 @@ async def delete_schedule_client(message: types.Message, state: FSMContext):
             return
         valid_date = datetime.combine(data["date"], time(hour=valid_time))
         if valid_date < datetime.now():
-            await message.answer("Вы можете удалить только записи, время которой не наступило")
+            await message.answer(
+                "Вы можете удалить только записи, время которой не наступило"
+            )
             return
         res = await db.delete_schedule_client(data["user_id"], valid_date)
         await message.answer(res)
