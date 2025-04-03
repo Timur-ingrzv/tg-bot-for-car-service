@@ -37,13 +37,9 @@ class MethodsServices:
         finally:
             await connection.close()
 
-    async def add_service(
-        self, service_name: str, price: int, payout: int
-    ) -> str:
-        """Добавляет новую услугу"""
+    async def check_service_existing(self, service_name: str) -> int:
         connection = await asyncpg.connect(**self.db_config)
         try:
-            # проверяем существование услуги
             query_check = (
                 Query.from_(self.services_info)
                 .select(self.services_info.id)
@@ -51,8 +47,23 @@ class MethodsServices:
             )
             res = await connection.fetch(str(query_check))
             if res:
-                return "Данная услуга уже существует"
+                return 1
+            else:
+                return 0
 
+        except Exception as e:
+            logging.error(e)
+            return -1
+
+        finally:
+            await connection.close()
+
+    async def add_service(
+        self, service_name: str, price: int, payout: int
+    ) -> str:
+        """Добавляет новую услугу"""
+        connection = await asyncpg.connect(**self.db_config)
+        try:
             # Добавляем услугу
             query = (
                 Query.into(self.services_info)
