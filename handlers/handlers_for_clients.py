@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime, timedelta, time
 
 from aiogram import F, Router, types
@@ -39,12 +40,11 @@ async def change_profile_data(callback: types.CallbackQuery):
 async def input_new_value(callback: types.CallbackQuery, state: FSMContext):
     changed_field = callback.data.split("_", maxsplit=1)[1]
     await state.update_data(changed_field=changed_field)
-    field = {
-        "login": "Логин",
-        "phone_number": "Номер телефона",
-        "name": "Имя",
-        "password": "Пароль",
-    }
+    field = defaultdict(lambda: "Неопознано")
+    field["login"] = "Логин"
+    field["phone_number"] =  "Номер телефона"
+    field["name"] = ["Имя"]
+    field["password"] = "Пароль"
     from main import bot
 
     await bot.edit_message_text(
