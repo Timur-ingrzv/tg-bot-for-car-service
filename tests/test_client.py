@@ -79,13 +79,11 @@ def callback_query():
 
 
 """Тестирование записи на услугу"""
-
-
 @pytest.mark.asyncio
 async def test_input_date_to_add_schedule(callback_query, fsm_context):
     now = datetime.now() + timedelta(days=1)
     with patch(
-        "utils.calendar.get_calendar", new_callable=AsyncMock
+        "utils.calendar_tg.get_calendar", new_callable=AsyncMock
     ) as mock_calendar, patch.object(
         Message, "answer", new_callable=AsyncMock
     ) as mock_answer:
@@ -113,7 +111,7 @@ async def test_input_time_to_add_schedule(callback_query, fsm_context):
         date.today() + timedelta(days=1),
     )
     with patch(
-        "utils.calendar.get_calendar", new_callable=AsyncMock
+        "utils.calendar_tg.get_calendar", new_callable=AsyncMock
     ) as mock_calendar, patch.object(
         Message, "answer", new_callable=AsyncMock
     ) as mock_msg_answer, patch.object(
@@ -208,7 +206,7 @@ async def test_add_schedule(callback_query, fsm_context):
     with patch(
         "database.methods.db.add_schedule", new_callable=AsyncMock
     ) as mock_add_schedule, patch(
-        "bot.bot.edit_message_text", new_callable=AsyncMock
+        "main.bot.edit_message_text", new_callable=AsyncMock
     ) as mock_edit, patch.object(
         Message, "answer", new_callable=AsyncMock
     ) as mock_cb_answer:
@@ -235,12 +233,10 @@ async def test_add_schedule(callback_query, fsm_context):
 
 
 """Тестирование просмотра расписания"""
-
-
 @pytest.mark.asyncio
 async def test_input_date_for_scheduler(callback_query, fsm_context):
     with patch(
-        "utils.calendar.get_calendar", new_callable=AsyncMock
+        "utils.calendar_tg.get_calendar", new_callable=AsyncMock
     ) as mock_calendar, patch.object(
         Message, "answer", new_callable=AsyncMock
     ):
@@ -259,7 +255,7 @@ async def test_input_date_for_scheduler(callback_query, fsm_context):
 @pytest.mark.asyncio
 async def test_show_schedule(callback_query, fsm_context):
     with patch(
-        "utils.calendar.get_calendar", new_callable=AsyncMock
+        "utils.calendar_tg.get_calendar", new_callable=AsyncMock
     ) as mock_calendar, patch(
         "database.methods.db.find_free_slots", new_callable=AsyncMock
     ) as mock_find_slots, patch.object(

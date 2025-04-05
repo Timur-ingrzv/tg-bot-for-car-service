@@ -71,8 +71,6 @@ def message():
 
 
 """Тестирование просмотра пользователей"""
-
-
 @pytest.mark.asyncio
 async def test_show_users(callback_query):
     callback = callback_query("show clients")
@@ -105,7 +103,7 @@ async def test_send_new_page(callback_query):
         "handlers.handlers_for_administration.generate_page_buttons",
         return_value="mock_kb",
     ), patch(
-        "bot.bot.edit_message_text", new_callable=AsyncMock
+        "main.bot.edit_message_text", new_callable=AsyncMock
     ) as mock_edit:
         mock_find.return_value = [f"User {i}" for i in range(10)]
         await send_new_page(callback)
@@ -121,8 +119,6 @@ async def test_send_new_page(callback_query):
 
 
 """Тестирование просмотра информации о сотрудниках"""
-
-
 @pytest.mark.asyncio
 async def test_input_worker_name(callback_query, fsm_context):
     callback = callback_query("show working time for worker")
@@ -198,7 +194,7 @@ async def test_input_date_to_delete(message, fsm_context):
     await fsm_context.set_state(SchedulerAdmin.waiting_for_name_to_delete)
     now = datetime.now() + timedelta(days=1)
     with patch(
-        "utils.calendar.get_calendar", new_callable=AsyncMock
+        "utils.calendar_tg.get_calendar", new_callable=AsyncMock
     ) as mock_calendar, patch.object(
         Message, "answer", new_callable=AsyncMock
     ) as mock_answer:
@@ -250,15 +246,13 @@ async def test_delete_scheduler_invalid_hour(message, fsm_context):
     ) as mock_answer:
         await delete_scheduler(message, fsm_context)
         state = await fsm_context.get_state()
-        assert state == UserStatus.admin
+        assert state == SchedulerAdmin.waiting_for_time_to_delete
         mock_answer.assert_awaited_with(
             "Время должно быть целое число в диапазоне от 0 до 23"
         )
 
 
 """Тестирование статистики"""
-
-
 @pytest.mark.asyncio
 async def test_get_statistic_success(message, fsm_context):
     start = datetime.today()
@@ -334,8 +328,8 @@ async def test_get_statistic_empty_result(message, fsm_context):
     await fsm_context.set_state(Statistic.waiting_end_time)
     await fsm_context.update_data(
         {
-            "start_date": datetime.today(),
-            "end_date": datetime.today(),
+            "start_date": datetime.now() - timedelta(days=1),
+            "end_date": datetime.now().date(),
             "user_id": 1,
             "status": "admin",
         }
@@ -356,8 +350,8 @@ async def test_get_statistic_error(message, fsm_context):
     await fsm_context.set_state(Statistic.waiting_end_time)
     await fsm_context.update_data(
         {
-            "start_date": datetime.today(),
-            "end_date": datetime.today(),
+            "start_date": datetime.now() - timedelta(days=1),
+            "end_date": datetime.now().date(),
             "user_id": 1,
             "status": "admin",
         }
@@ -429,7 +423,7 @@ async def test_change_working_time_invalid_format(
     ) as mock_answer:
         await change_working_time(message, fsm_context)
         state = await fsm_context.get_state()
-        assert state == UserStatus.admin
+        assert state == WorkingTime.waiting_time
         mock_answer.assert_awaited_with("Неправильный формат времени")
 
 
@@ -548,8 +542,6 @@ async def test_show_info_client(message, fsm_context):
 
 
 """Тестирование добавления услуги"""
-
-
 @pytest.mark.asyncio
 async def test_add_service_invalid_format(message, fsm_context):
     await fsm_context.set_state(Services.waiting_for_payout_to_add)
@@ -626,7 +618,7 @@ async def test_choose_service_col_change(callback_query, fsm_context):
         "keyboards.keyboards_for_administration.get_service_col_to_change",
         return_value="mock_kb",
     ), patch(
-        "bot.bot.edit_message_text", new_callable=AsyncMock
+        "main.bot.edit_message_text", new_callable=AsyncMock
     ) as mock_edit, patch.object(
         Message, "answer", new_callable=AsyncMock
     ) as mock_answer:
